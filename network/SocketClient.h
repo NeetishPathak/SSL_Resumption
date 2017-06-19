@@ -15,7 +15,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <iostream>
-#include <thread>
+//#include <thread>
 
 #define CLIENT_THREADS_ON FALSE
 
