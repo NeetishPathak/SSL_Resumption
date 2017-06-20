@@ -190,8 +190,8 @@ int SocketServer::listen(){
 	}
 
 	if(CIPHERTYPE == EC){
-		if(DHPARAMS){
-			/*DH*/
+		/*if(DHPARAMS){
+			//DH
 			DH *dh;
 			BIO *bio;
 			bio = BIO_new_file(DHPARAMS, "r");
@@ -208,13 +208,13 @@ int SocketServer::listen(){
 				SSL_CTX_set_tmp_dh(ssl_ctx, dh);
 				DH_free(dh);
 			}
-		}
+		}*/
 
 		/*ECDH*/
 		EC_KEY *ecdh = NULL;
 		EC_GROUP *ecg = NULL;
 
-		if(ECPARAMS){
+		/*if(ECPARAMS){
 			BIO *bio;
 			bio = BIO_new_file(ECPARAMS, "r");
 
@@ -240,10 +240,10 @@ int SocketServer::listen(){
 
 			}
 
-		}
+		}*/
 
 		/*Use prime256v1 by default*/
-		if(ecdh == NULL){
+		/*if(ecdh == NULL){
 			fail("No name is specified for ecdh. assigning default name NID_X9_62_prime256v1");
 			ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
 			EC_KEY_set_asn1_flag(ecdh, OPENSSL_EC_NAMED_CURVE);
@@ -252,6 +252,7 @@ int SocketServer::listen(){
 
 		SSL_CTX_set_tmp_ecdh(ssl_ctx,ecdh);
 		EC_KEY_free(ecdh);
+		*/
 	}
 
 	struct timespec start, end;
