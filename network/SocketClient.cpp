@@ -172,10 +172,12 @@ std::pair<uint64_t, double> SocketClient::sslTcpConnect(){
 
 	/*SocketClient.cpp : Time Measurement for SSL connection*/
 	struct timespec start, end;
-	struct rusage stCpu; struct rusage eCpu;
+	struct timespec stCpu, eCpu;
+	/*struct rusage stCpu; struct rusage eCpu;
 	if(getrusage(RUSAGE_SELF, &stCpu) == -1){
 		perror("SocketServer.cpp : StartCPU Usage not fetched");
-	}
+	}*/
+	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &stCpu);
 	clock_gettime(CLOCK_MONOTONIC_RAW, &start); //start time
 
 	/*Perform the SSL handshake*/
@@ -189,16 +191,19 @@ std::pair<uint64_t, double> SocketClient::sslTcpConnect(){
 		pass("SocketClient.cpp : SSL_connect successful");
 	}
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end); //End time
-	if(getrusage(RUSAGE_SELF, &eCpu) == -1){
+	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &eCpu);
+	/*if(getrusage(RUSAGE_SELF, &eCpu) == -1){
 		perror("SocketServer.cpp : EndCPU Usage not fetched");
-	}
+	}*/
 	/*-------------------------------------------- Printing the time taken for handshake -------------------------------------*/
 	uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
 	time("SocketClient.cpp : Handshake time : ", delta_us);
-	uint64_t delta_cpu_user_us = (eCpu.ru_utime.tv_sec - stCpu.ru_utime.tv_sec) * 1000000 + (eCpu.ru_utime.tv_usec - stCpu.ru_utime.tv_usec);
+	/*uint64_t delta_cpu_user_us = (eCpu.ru_utime.tv_sec - stCpu.ru_utime.tv_sec) * 1000000 + (eCpu.ru_utime.tv_usec - stCpu.ru_utime.tv_usec);
 	cpu("SocketServer.cpp : User CPU time : ", delta_cpu_user_us);
 	uint64_t delta_cpu_sys_us = (eCpu.ru_stime.tv_sec - stCpu.ru_stime.tv_sec) * 1000000 + (eCpu.ru_stime.tv_usec - stCpu.ru_stime.tv_usec);
-	cpu("SocketServer.cpp : System CPU time : ", delta_cpu_sys_us);
+	cpu("SocketServer.cpp : System CPU time : ", delta_cpu_sys_us);*/
+	uint64_t delta_cpu_us = (eCpu.tv_sec - stCpu.tv_sec) * 1000000 + (eCpu.tv_nsec - stCpu.tv_nsec) / 1000;
+	cpu("SocketServer.cpp : CPU time : ", delta_cpu_us);
 	/*------------------------------------------------------------------------------------------------------------------------*/
 	cipher("SocketClient.cpp :  Client Used Cipher : ", SSL_get_cipher(conn));
 
@@ -213,13 +218,13 @@ std::pair<uint64_t, double> SocketClient::sslTcpConnect(){
 		SSL_read(this->conn, NULL, 0);
 
 #if HANDSHAKES_CNT_LOOP
-	clientOpFile << delta_us << "," << delta_cpu_user_us  << "," << delta_cpu_sys_us << "," << delta_cpu_user_us + delta_cpu_sys_us << "\n";
+	clientOpFile << delta_us << "," << delta_cpu_us << "\n";
 #endif
 
 	SSL_CTX_get_client_CA_list(this->ssl_ctx);
 	pair<uint64_t, double> stats;
 	stats.first = delta_us;
-	stats.second = (delta_cpu_user_us + delta_cpu_sys_us);
+	stats.second = (delta_cpu_us);
 	return stats;
 }
 

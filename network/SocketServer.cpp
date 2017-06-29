@@ -354,8 +354,9 @@ int SocketServer::listen(){
 		uint64_t delta_cpu_sys_us = (eCpu.ru_stime.tv_sec - stCpu.ru_stime.tv_sec) * 1000000 + (eCpu.ru_stime.tv_usec - stCpu.ru_stime.tv_usec);
 		cpu("SocketServer.cpp : System CPU time : ", delta_cpu_sys_us);
 		*/
-		uint64_t delta_cpu_sys_us = (eCpu.tv_sec - stCpu.tv_sec) * 1000000 + (eCpu.tv_nsec - stCpu.tv_nsec) / 1000;
-		cpu("SocketServer.cpp : User CPU time : ", delta_cpu_sys_us);
+		/*Generally user CPU time is more than system CPU time*/
+		uint64_t delta_cpu_us = (eCpu.tv_sec - stCpu.tv_sec) * 1000000 + (eCpu.tv_nsec - stCpu.tv_nsec) / 1000;
+		cpu("SocketServer.cpp : CPU time : ", delta_cpu_us);
 
 
 		/*The selected Cipher-suite by the server is */
@@ -371,7 +372,7 @@ int SocketServer::listen(){
 
 #if HANDSHAKES_CNT_LOOP
 		//serverOpFile << delta_us << "," << delta_cpu_user_us  << "," << delta_cpu_sys_us << "," << delta_cpu_user_us + delta_cpu_sys_us << "\n";
-		serverOpFile << delta_us << "," << delta_cpu_sys_us << "\n";
+		serverOpFile << delta_us << "," << delta_cpu_us << "\n";
 #endif
 /*
 		if(firstConn){
