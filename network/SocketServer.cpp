@@ -138,6 +138,9 @@ SocketServer::SocketServer(std::string portNumber){
 	this->conn = NULL;
 	this->bio = NULL;
 	this->bioClient = NULL;
+#if HANDSHAKES_CNT_LOOP
+	this->serverOpFile.open(CLIENT_FILENAME,std::ofstream::out);
+#endif
 }
 
 std::atomic<bool> quit(false);    // signal flag
@@ -283,19 +286,19 @@ int SocketServer::listen(){
 
 	if(!bio)
 		int_error("SocketServer.cpp : Error setting accept");
-
+	//BIO_set_nbio(bio, 200);
 	if(BIO_do_accept(bio) <= 0)
 		int_error("SicketServer.cpp : Error binding the server Socket");
 
 	for(;;){
-#if HANDSHAKES_CNT_LOOP
+/*#if HANDSHAKES_CNT_LOOP
 		int loopCnt = HANDSHAKES_CNT + 1;
 		bool firstConn = TRUE;
 		uint64_t fTime = 0, rTime = 0; double fCpu = 0, rCpu = 0;
 		while(loopCnt--){
 
 #endif
-
+*/
 		if(BIO_do_accept(bio) <= 0){
 			if(quit.load()){return 0;}
 			fail("SocketServer.cpp : Error on accepting TCP connection");
@@ -349,16 +352,19 @@ int SocketServer::listen(){
 
 		/*The selected Cipher-suite by the server is */
 		if(DEBUG)
-		//printf("SocketServer.cpp : Current cipher is %s\n\n",SSL_get_cipher(conn));
 		cipher("SocketServer.cpp :  Server selected Cipher : ", SSL_get_cipher(conn));
 
 		SSL_shutdown(this->conn);
 		BIO_free(this->bioClient);
+		this->conn = NULL;
+		this->bioClient = NULL;
 
 
 
 #if HANDSHAKES_CNT_LOOP
-
+		serverOpFile << delta_us << "," << delta_cpu_user_us  << "," << delta_cpu_sys_us << "," << delta_cpu_user_us + delta_cpu_sys_us << "\n";
+#endif
+/*
 		if(firstConn){
 				fTime = delta_us;
 				fCpu = delta_cpu_user_us + delta_cpu_sys_us;
@@ -373,6 +379,7 @@ int SocketServer::listen(){
 		fprintf(stderr, "Server On Sess Resumption : [%s]  %llu us\t [%s]  %f us\n", CLOCK, rTime/HANDSHAKES_CNT, CPU_USE, rCpu/HANDSHAKES_CNT);
 
 #endif
+*/
 
 		/*Leave one line*/
 		cout << endl;
@@ -410,7 +417,10 @@ SocketServer :: ~SocketServer(){
 		int sd = SSL_get_fd(conn);
 		close(sd);
 	}
-
+#if HANDSHAKES_CNT_LOOP
+	if(this->serverOpFile.is_open())
+	this->serverOpFile.close();
+#endif
 	SSL_CTX_free(ssl_ctx);	
 	fprintf(stderr,"\n\033[1;35mServer Shutdown...\033[0m\n");
 }

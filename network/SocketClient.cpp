@@ -36,6 +36,9 @@ SocketClient::SocketClient(string serverName, string portNumber){
 	this->bio = NULL;
 	this->sessionId = NULL;
 	this->handshakes = HANDSHAKES_CNT;
+#if HANDSHAKES_CNT_LOOP
+	this->clientOpFile.open(SERVER_FILENAME,std::ofstream::out);
+#endif
 }
 
 int SocketClient::connectToServer(){
@@ -155,6 +158,8 @@ std::pair<uint64_t, double> SocketClient::sslTcpConnect(){
 	bio = BIO_new_connect((this->serverName + ":" + this->portNumber).c_str());
 	if(!bio)
 		int_error("Error creating connection BIO");
+	//usleep(10000);
+	//BIO_set_nbio(bio, 200);
 
 	if(BIO_do_connect(bio) <= 0){
 		fail("SocketClient.cpp : TCP connection failed");
@@ -207,6 +212,10 @@ std::pair<uint64_t, double> SocketClient::sslTcpConnect(){
 	if(TLSv1_3)
 		SSL_read(this->conn, NULL, 0);
 
+#if HANDSHAKES_CNT_LOOP
+	clientOpFile << delta_us << "," << delta_cpu_user_us  << "," << delta_cpu_sys_us << "," << delta_cpu_user_us + delta_cpu_sys_us << "\n";
+#endif
+
 	SSL_CTX_get_client_CA_list(this->ssl_ctx);
 	pair<uint64_t, double> stats;
 	stats.first = delta_us;
@@ -238,9 +247,12 @@ string SocketClient::receive(int size=1024){
 int SocketClient::sslTcpClosure(){
 	if (this->conn){
 		SSL_shutdown(this->conn);
+		this->conn = NULL;
 	}
-	if(this->bio)
+	if(this->bio){
 		BIO_free(this->bio);
+		this->conn = NULL;
+	}
 	return 0;
 }
 
@@ -252,6 +264,10 @@ int SocketClient::disconnectFromServer(){
 }
 
 SocketClient::~SocketClient(){
+#if HANDSHAKES_CNT_LOOP
+	if(this->clientOpFile.is_open())
+	this->clientOpFile.close();
+#endif
 	if(this->isConnected == true){
 		disconnectFromServer();
 	}

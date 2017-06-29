@@ -4,18 +4,6 @@
 #define SOCKETCLIENT_H_
 
 #include "common.h"
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <string>
-#include <time.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <iostream>
-//#include <thread>
 
 #define CLIENT_THREADS_ON FALSE
 
@@ -144,7 +132,7 @@ private:
 	BIO* bio;
 	SSL_SESSION *sessionId;
 	int handshakes;
-
+	std::ofstream clientOpFile;
 public:
 	typedef int (SocketClient::*cb_ptr)(SSL * , SSL_SESSION *);
 	cb_ptr new_sess;

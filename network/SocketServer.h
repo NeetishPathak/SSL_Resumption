@@ -4,22 +4,8 @@
 #define SOCKETSERVER_H_
 
 #include "common.h"
-#include <string>
-#include <time.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <pthread.h>
-#include <iostream>
-#include <string>
-//#include <thread>
-#include <assert.h>
 #include <signal.h>
-#include <unistd.h>
 #include <atomic>
-
-
 
 /*openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 365 -out certificate.pem*/
 #define KEYS_DIR "./network/credentials/keys/"
@@ -156,6 +142,7 @@ private:
 	SSL_CTX *ssl_ctx;
 	SSL* conn;
 	BIO	*bio, *bioClient;
+	std::ofstream serverOpFile;
 	
 public:
 	SocketServer(std::string portNumber);
