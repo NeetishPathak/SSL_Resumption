@@ -56,7 +56,7 @@
 #define TLSv1_3 FALSE
 #define NO_SESSION_TICKETS TRUE
 #define CIPHERTYPE 1
-#define FILE "11_TS_"
+#define FILE "1_1_TS_"
 #define HANDSHAKES_CNT 999
 #define HANDSHAKES_CNT_LOOP TRUE
 
