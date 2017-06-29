@@ -17,7 +17,7 @@ static int new_session_cb(SSL* ssl, SSL_SESSION * sess){
 	if(stmp == NULL){
 		BIO_printf(bio_err,"Error writing session file %s\n",SESS_OUT);
 	}else{
-		fprintf(stderr,"Session getting set\n");
+		//fprintf(stderr,"Session getting set\n");
 		PEM_write_bio_SSL_SESSION(stmp,sess);
 		BIO_free(stmp);
 		resumeInput = TRUE;
@@ -60,14 +60,44 @@ int SocketClient::connectToServer(){
 	}
 
 
-	if (SSL_CTX_set_cipher_list(ssl_ctx, CIPHERSUITE) != 1)
+	if (SSL_CTX_set_cipher_list(ssl_ctx, CIPHERSUITE) != 1){
 	   perror("SocketCLient.cpp : Unable to set cipher list");
+	}else{
+		cipher("Client loaded Cipher : ", CIPHERSUITE);
+	}
 
 	if(ssl_ctx){
 		SSL_CTX_set_session_cache_mode(ssl_ctx, SSL_SESS_CACHE_CLIENT
 											| SSL_SESS_CACHE_NO_INTERNAL_STORE);
 		SSL_CTX_sess_set_new_cb(ssl_ctx, new_session_cb);
 	}
+
+
+	/* Load the client certificate into the SSL_CTX structure */
+	if (SSL_CTX_use_certificate_file(ssl_ctx, CLIENT_CERT_KEY, SSL_FILETYPE_PEM) <= 0){
+		ERR_print_errors_fp(stderr);
+		exit(1);
+	}
+
+
+	/* Load the private-key corresponding to the client certificate */
+	if (SSL_CTX_use_PrivateKey_file(ssl_ctx, CLIENT_CERT_KEY, SSL_FILETYPE_PEM) <= 0) {
+		ERR_print_errors_fp(stderr);
+		exit(1);
+	}
+
+
+	/*Load CA certificate in ssl-ctx structure*/
+	if(!SSL_CTX_load_verify_locations(ssl_ctx, SERVER_CA, NULL)){
+		ERR_print_errors_fp(stderr);
+		exit(1);
+	}
+
+	SSL_CTX_set_verify(ssl_ctx,SSL_VERIFY_PEER,NULL);
+	SSL_CTX_set_verify_depth(ssl_ctx,1);
+	/*Server certificate is authenticated*/
+	pass("SocketClient.cpp : Server certificate Authenticated");
+
 
 
 	return 0;
@@ -108,7 +138,7 @@ std::pair<uint64_t, double> SocketClient::sslTcpConnect(){
 					SSL_SESSION_free(this->sessionId);
 				}
 			}*/
-			cout << "Resumption Code is activated" << endl;
+			//cout << "Resumption Code is activated" << endl;
 		}
 
 		/*Another way of resumption*/
@@ -165,6 +195,7 @@ std::pair<uint64_t, double> SocketClient::sslTcpConnect(){
 	uint64_t delta_cpu_sys_us = (eCpu.ru_stime.tv_sec - stCpu.ru_stime.tv_sec) * 1000000 + (eCpu.ru_stime.tv_usec - stCpu.ru_stime.tv_usec);
 	cpu("SocketServer.cpp : System CPU time : ", delta_cpu_sys_us);
 	/*------------------------------------------------------------------------------------------------------------------------*/
+	cipher("SocketClient.cpp :  Client Used Cipher : ", SSL_get_cipher(conn));
 
 	/*Save the session Id*/
 	/*if(FALSE == TLSv1_3){
@@ -175,6 +206,8 @@ std::pair<uint64_t, double> SocketClient::sslTcpConnect(){
 	}*/
 	if(TLSv1_3)
 		SSL_read(this->conn, NULL, 0);
+
+	SSL_CTX_get_client_CA_list(this->ssl_ctx);
 	pair<uint64_t, double> stats;
 	stats.first = delta_us;
 	stats.second = (delta_cpu_user_us + delta_cpu_sys_us);

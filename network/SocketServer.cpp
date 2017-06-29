@@ -130,9 +130,6 @@ static void free_sessions(void)
 }
 
 
-
-
-
 SocketServer::SocketServer(std::string portNumber){
 
 	this->portNumber = portNumber;
@@ -143,7 +140,21 @@ SocketServer::SocketServer(std::string portNumber){
 	this->bioClient = NULL;
 }
 
+std::atomic<bool> quit(false);    // signal flag
+
+void got_signal(int)
+{
+	quit.store(true);
+}
+
 int SocketServer::listen(){
+
+	/*Signal Handling*/
+	struct sigaction sa;
+	memset( &sa, 0, sizeof(sa) );
+	sa.sa_handler = got_signal;
+	sigfillset(&sa.sa_mask);
+	sigaction(SIGINT,&sa,NULL);
 
 	/*Initialization
 	 ** (1)Register SSL/TLS ciphers and digests
@@ -157,13 +168,15 @@ int SocketServer::listen(){
 	int admin_user = 2;
 	SSL_CTX_set_session_id_context(ssl_ctx, &normal_user, sizeof(normal_user));
 	//SSL_CTX_set_session_cache_mode(ssl_ctx, SSL_SESS_CACHE_BOTH);
-	SSL_CTX_set_timeout(ssl_ctx, 600);
+	//SSL_CTX_set_timeout(ssl_ctx, 600);
 	//init_session_cache_ctx(this->ssl_ctx);
 
 	if(NO_SESSION_TICKETS)
 	SSL_CTX_set_options(this->ssl_ctx, SSL_OP_NO_TICKET);
+
 	SSL_CTX_set_max_proto_version(ssl_ctx, MAX_TLS_VERSION);
 	SSL_CTX_set_min_proto_version(ssl_ctx, MIN_TLS_VERSION);
+
 	if(NULL == ssl_ctx){
 		fail("SocketClient.cpp : ssl_ctx object creation failed"); perror("");
 	}else{
@@ -171,79 +184,87 @@ int SocketServer::listen(){
 	}
 
 	/* Load the client certificate into the SSL_CTX structure */
-	if (SSL_CTX_use_certificate_file(ssl_ctx, SERVER_CERT, SSL_FILETYPE_PEM) <= 0){
+	if (SSL_CTX_use_certificate_file(ssl_ctx, SERVER_CERT_KEY, SSL_FILETYPE_PEM) <= 0){
 		ERR_print_errors_fp(stderr);
 		exit(1);
 	}
 
 	/* Load the private-key corresponding to the client certificate */
-	if (SSL_CTX_use_PrivateKey_file(ssl_ctx, SERVER_KEY, SSL_FILETYPE_PEM) <= 0) {
+	if (SSL_CTX_use_PrivateKey_file(ssl_ctx, SERVER_CERT_KEY, SSL_FILETYPE_PEM) <= 0) {
 		ERR_print_errors_fp(stderr);
 		exit(1);
 	}
+
 	/* Check if the client certificate and private-key matches */
 	if (!SSL_CTX_check_private_key(ssl_ctx)) {
-		perror("Private key does not match the certificate public key\n");
+		perror("SocketServer.cpp : Private key does not match the certificate public key\n");
 		exit(1);
-	}else{
-		pass("SocketServer.cpp : Public private keys match");
 	}
 
-	if(CIPHERTYPE == EC){
-		/*if(DHPARAMS){
-			//DH
-			DH *dh;
-			BIO *bio;
-			bio = BIO_new_file(DHPARAMS, "r");
-			if(!bio){
-				fail("SocketServer.cpp : Unable to read the DH params from dhparams file");
-				ERR_error_string(ERR_get_error(), NULL);
-			}
+	/*Load CA certificate in ssl-ctx structure*/
+	if(!SSL_CTX_load_verify_locations(ssl_ctx, CLIENT_CA, NULL)){
+		ERR_print_errors_fp(stderr);
+		exit(1);
+	}
 
-			dh = PEM_read_bio_DHparams(bio, NULL, NULL, NULL);
-			BIO_free(bio);
+	SSL_CTX_set_verify(ssl_ctx,SSL_VERIFY_PEER,NULL);
+	SSL_CTX_set_verify_depth(ssl_ctx,1);
+	/*Server certificate is authenticated*/
+	pass("SocketServer.cpp : Client certificate Authenticated");
 
-			if(dh){
-				pass("dh Read successfully");
-				SSL_CTX_set_tmp_dh(ssl_ctx, dh);
-				DH_free(dh);
-			}
-		}*/
 
+	if(EN_DHPARAMS){
+		//DH
+		DH *dh;
+		BIO *bio;
+		bio = BIO_new_file(DHPARAMS, "r");
+		if(!bio){
+			fail("SocketServer.cpp : Unable to read the DH params from dhparams file");
+			ERR_error_string(ERR_get_error(), NULL);
+		}
+
+		dh = PEM_read_bio_DHparams(bio, NULL, NULL, NULL);
+		BIO_free(bio);
+
+		if(dh){
+			pass("dh Read successfully");
+			SSL_CTX_set_tmp_dh(ssl_ctx, dh);
+			DH_free(dh);
+		}
+	}
+
+
+	if(EN_ECPARAMS){
 		/*ECDH*/
 		EC_KEY *ecdh = NULL;
 		EC_GROUP *ecg = NULL;
-
-		/*if(ECPARAMS){
-			BIO *bio;
-			bio = BIO_new_file(ECPARAMS, "r");
+		BIO *bio;
+		bio = BIO_new_file(ECPARAMS, "r");
 
 
-			if(!bio){
-				fail("SocketServer.cpp : Unable to read ECDH params from dhparams file");
-				ERR_error_string(ERR_get_error(), NULL);
+		if(!bio){
+			fail("SocketServer.cpp : Unable to read ECDH params from dhparams file");
+			ERR_error_string(ERR_get_error(), NULL);
+		}
+
+		ecg = PEM_read_bio_ECPKParameters(bio, NULL, NULL, NULL);
+		BIO_free(bio);
+
+		if(ecg){
+			int nid = EC_GROUP_get_curve_name(ecg);
+
+			if(!nid){
+				fail("SocketServer.cpp : Unable to find the specified curve name");
 			}
 
-			ecg = PEM_read_bio_ECPKParameters(bio, NULL, NULL, NULL);
-			BIO_free(bio);
+			ecdh = EC_KEY_new_by_curve_name(nid);
+			EC_KEY_set_asn1_flag(ecdh, OPENSSL_EC_NAMED_CURVE);
+			pass("EC get curve is successful");
 
-			if(ecg){
-				int nid = EC_GROUP_get_curve_name(ecg);
-
-				if(!nid){
-					fail("SocketServer.cpp : Unable to find the specified curve name");
-				}
-
-				ecdh = EC_KEY_new_by_curve_name(nid);
-				EC_KEY_set_asn1_flag(ecdh, OPENSSL_EC_NAMED_CURVE);
-				pass("EC get curve is successful");
-
-			}
-
-		}*/
+		}
 
 		/*Use prime256v1 by default*/
-		/*if(ecdh == NULL){
+		if(ecdh == NULL){
 			fail("No name is specified for ecdh. assigning default name NID_X9_62_prime256v1");
 			ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
 			EC_KEY_set_asn1_flag(ecdh, OPENSSL_EC_NAMED_CURVE);
@@ -252,21 +273,21 @@ int SocketServer::listen(){
 
 		SSL_CTX_set_tmp_ecdh(ssl_ctx,ecdh);
 		EC_KEY_free(ecdh);
-		*/
+
 	}
 
 	struct timespec start, end;
 	/*Establish a TCP connection*/
 	/*listening socket*/
 	bio = BIO_new_accept((this->portNumber).c_str());
+
 	if(!bio)
-		int_error("SocketServer.cpp : Error connecting listening TCP socket");
+		int_error("SocketServer.cpp : Error setting accept");
 
 	if(BIO_do_accept(bio) <= 0)
 		int_error("SicketServer.cpp : Error binding the server Socket");
 
 	for(;;){
-
 #if HANDSHAKES_CNT_LOOP
 		int loopCnt = HANDSHAKES_CNT + 1;
 		bool firstConn = TRUE;
@@ -276,8 +297,9 @@ int SocketServer::listen(){
 #endif
 
 		if(BIO_do_accept(bio) <= 0){
-			fail("SocketServer.cpp : Error on accepting connection");
-			int_error("TCP connection failure ->");
+			if(quit.load()){return 0;}
+			fail("SocketServer.cpp : Error on accepting TCP connection");
+			int_error("TCP connection failure");
 		}else{
 			pass("SocketServer.cpp : TCP connection successful");
 		}
@@ -327,21 +349,23 @@ int SocketServer::listen(){
 
 		/*The selected Cipher-suite by the server is */
 		if(DEBUG)
-		printf("SocketServer.cpp : Current cipher is %s\n",SSL_get_cipher(conn));
+		//printf("SocketServer.cpp : Current cipher is %s\n\n",SSL_get_cipher(conn));
+		cipher("SocketServer.cpp :  Server selected Cipher : ", SSL_get_cipher(conn));
 
 		SSL_shutdown(this->conn);
 		BIO_free(this->bioClient);
+
 
 
 #if HANDSHAKES_CNT_LOOP
 
 		if(firstConn){
 				fTime = delta_us;
-				fCpu = cpuTimeUsed;
+				fCpu = delta_cpu_user_us + delta_cpu_sys_us;
 				firstConn = FALSE;
 			}else{
 				rTime += delta_us;
-				rCpu += cpuTimeUsed;
+				rCpu += delta_cpu_user_us + delta_cpu_sys_us;
 			}
 		}
 
@@ -350,6 +374,8 @@ int SocketServer::listen(){
 
 #endif
 
+		/*Leave one line*/
+		cout << endl;
 	}
 
 	return 0;
@@ -380,8 +406,11 @@ string SocketServer::receive(int size=1024){
 SocketServer :: ~SocketServer(){
 
 	BIO_free(this->bio);
-	int sd = SSL_get_fd(conn);
-	close(sd);
+	if(this->conn){
+		int sd = SSL_get_fd(conn);
+		close(sd);
+	}
 
 	SSL_CTX_free(ssl_ctx);	
+	fprintf(stderr,"\n\033[1;35mServer Shutdown...\033[0m\n");
 }
