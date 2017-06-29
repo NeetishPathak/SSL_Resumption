@@ -88,7 +88,7 @@ void warn(const char *);
 void pass(const char *);
 void fail(const char*);
 void time(const char*, uint64_t);
-void cpu(const char*, double cpuUsage);
+void cpu(const char*,  uint64_t);
 void cipher(const char*, const char* );
 template <typename T>
 std::string tostring(const T& t);
