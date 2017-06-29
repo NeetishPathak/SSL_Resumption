@@ -317,12 +317,15 @@ int SocketServer::listen(){
 		SSL_set_bio(conn, this->bioClient, this->bioClient);
 		
 		/*SocketServer.cpp : Time Measurement for SSL connection*/
-		struct rusage stCpu;
-		struct rusage eCpu;
+		//struct rusage stCpu;
+		//struct rusage eCpu;
 
-		if(getrusage(RUSAGE_SELF, &stCpu) == -1){
+		struct timespec stCpu, eCpu;
+
+		/*if(getrusage(RUSAGE_SELF, &stCpu) == -1){
 			perror("SocketServer.cpp : StartCPU Usage not fetched");
-		}
+		}*/
+		clock_gettime(CLOCK_THREAD_CPUTIME_ID, &stCpu);
 		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
 		//uint64_t tempTimeSt = start.tv_nsec / 1000;
@@ -337,18 +340,23 @@ int SocketServer::listen(){
 		}
 
 		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-		if(getrusage(RUSAGE_SELF, &eCpu) == -1){
+		clock_gettime(CLOCK_THREAD_CPUTIME_ID, &eCpu);
+		/*if(getrusage(RUSAGE_SELF, &eCpu) == -1){
 			perror("SocketServer.cpp : EndCPU Usage not fetched");
-		}
+		}*/
 		//uint64_t tempTimeEnd = end.tv_nsec / 1000;
 		//time("SocketServer.cpp : Handshake End time : ", tempTimeEnd);
 
 		uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
 		time("SocketServer.cpp : Handshake time : ", delta_us);
-		uint64_t delta_cpu_user_us = (eCpu.ru_utime.tv_sec - stCpu.ru_utime.tv_sec) * 1000000 + (eCpu.ru_utime.tv_usec - stCpu.ru_utime.tv_usec);
+		/*uint64_t delta_cpu_user_us = (eCpu.ru_utime.tv_sec - stCpu.ru_utime.tv_sec) * 1000000 + (eCpu.ru_utime.tv_usec - stCpu.ru_utime.tv_usec);
 		cpu("SocketServer.cpp : User CPU time : ", delta_cpu_user_us);
 		uint64_t delta_cpu_sys_us = (eCpu.ru_stime.tv_sec - stCpu.ru_stime.tv_sec) * 1000000 + (eCpu.ru_stime.tv_usec - stCpu.ru_stime.tv_usec);
 		cpu("SocketServer.cpp : System CPU time : ", delta_cpu_sys_us);
+		*/
+		uint64_t delta_cpu_sys_us = (eCpu.tv_sec - stCpu.tv_sec) * 1000000 + (eCpu.tv_nsec - stCpu.tv_nsec) / 1000;
+		cpu("SocketServer.cpp : User CPU time : ", delta_cpu_sys_us);
+
 
 		/*The selected Cipher-suite by the server is */
 		if(DEBUG)
@@ -362,7 +370,8 @@ int SocketServer::listen(){
 
 
 #if HANDSHAKES_CNT_LOOP
-		serverOpFile << delta_us << "," << delta_cpu_user_us  << "," << delta_cpu_sys_us << "," << delta_cpu_user_us + delta_cpu_sys_us << "\n";
+		//serverOpFile << delta_us << "," << delta_cpu_user_us  << "," << delta_cpu_sys_us << "," << delta_cpu_user_us + delta_cpu_sys_us << "\n";
+		serverOpFile << delta_us << "," << delta_cpu_sys_us << "\n";
 #endif
 /*
 		if(firstConn){
