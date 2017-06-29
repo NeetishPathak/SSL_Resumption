@@ -31,12 +31,12 @@ void fail(const char* Str){
 
 void time(const char * timeStr, uint64_t delta_time){
 	if(DEBUG)
-	fprintf(stderr, "[%s] %s %llu us\n", CLOCK, timeStr, delta_time);
+	fprintf(stderr, "[%s] %s %lu us\n", CLOCK, timeStr, delta_time);
 }
 
 void cpu(const char * cpuStr, uint64_t cpuTime){
 	if(DEBUG)
-	fprintf(stderr, "[%s] %s %llu us\n", CPU_USE, cpuStr, cpuTime);
+	fprintf(stderr, "[%s] %s %lu us\n", CPU_USE, cpuStr, cpuTime);
 }
 
 void cipher(const char * cpuStr, const char* cipher){

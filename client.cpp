@@ -76,8 +76,8 @@ int main(int argc, char **argv){
 	}
 	clientLoopStats.first /= HANDSHAKES_CNT;
 	clientLoopStats.second /= HANDSHAKES_CNT;
-	fprintf(stderr, "Client On 1st  Connection : [%s]  %llu us\t [%s]  %f us\n", CLOCK, clientStats.first, CPU_USE, clientStats.second);
-	fprintf(stderr, "Client On Sess Resumption : [%s]  %llu us\t [%s]  %f us\n", CLOCK, clientLoopStats.first, CPU_USE, clientLoopStats.second);
+	fprintf(stderr, "Client On 1st  Connection : [%s]  %lu us\t [%s]  %f us\n", CLOCK, clientStats.first, CPU_USE, clientStats.second);
+	fprintf(stderr, "Client On Sess Resumption : [%s]  %lu us\t [%s]  %f us\n", CLOCK, clientLoopStats.first, CPU_USE, clientLoopStats.second);
 	//testReportFile.close();
 #endif
 
