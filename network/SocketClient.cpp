@@ -37,7 +37,7 @@ SocketClient::SocketClient(string serverName, string portNumber){
 	this->sessionId = NULL;
 	this->handshakes = HANDSHAKES_CNT;
 #if HANDSHAKES_CNT_LOOP
-	this->clientOpFile.open(SERVER_FILENAME,std::ofstream::out);
+	this->clientOpFile.open(CLIENT_FILENAME,std::ofstream::out);
 #endif
 }
 

@@ -139,7 +139,7 @@ SocketServer::SocketServer(std::string portNumber){
 	this->bio = NULL;
 	this->bioClient = NULL;
 #if HANDSHAKES_CNT_LOOP
-	this->serverOpFile.open(CLIENT_FILENAME,std::ofstream::out);
+	this->serverOpFile.open(SERVER_FILENAME,std::ofstream::out);
 #endif
 }
 
