@@ -21,7 +21,7 @@ int main(int argc, char **argv){
 		perror("client.cpp : Incorrect usage:  ./client <IP of server> OR ./client <IP of server> <PortNumber> ");
 		return 1;
 	}
-
+	runTestCase("Client - Running test Case", testCaseNames[TESTCASE]);
 	SocketClient client(argv[1], argc==3?argv[2]:PORT);
 	int connectAgain = FALSE;
 	pair<uint64_t, double>  clientStats;

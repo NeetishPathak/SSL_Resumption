@@ -1,5 +1,8 @@
 #include "common.h"
 
+const char* testCaseNames[] = {"NONE", "TLS1_2_NO_RESUMPTION", "TLS1_2_SESSION_IDS", "TLS1_3_NO_RESUMPTION" \
+								"TLS1_3_PSK", "TLS1_3_0_RTT", "TLS1_3_PRE_PSK", "TLS1_2_FALSE_START"};
+
 void handle_error(const char *file, int lineno, const char	*msg){
 	fprintf(stderr, " ** %s %i %s \n", file, lineno, msg);
 	ERR_print_errors_fp(stderr);
@@ -42,6 +45,16 @@ void cpu(const char * cpuStr, uint64_t cpuTime){
 void cipher(const char * cpuStr, const char* cipher){
 	if(DEBUG)
 	fprintf(stderr, "[%s] %s %s \n", CIPHER, cpuStr, cipher);
+}
+
+void cipherAll(const char * cpuStr, const char* cipher){
+	if(DEBUG)
+	fprintf(stderr, "[%s] %s %s \n", CIPHERALL, cpuStr, cipher);
+}
+
+void runTestCase(const char * cpuStr, const char* cipher){
+	if(DEBUG)
+	fprintf(stderr, "[%s] %s %s \n", RUNTEST, cpuStr, cipher);
 }
 
 void debug(const char* val){

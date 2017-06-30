@@ -66,7 +66,7 @@ int SocketClient::connectToServer(){
 	if (SSL_CTX_set_cipher_list(ssl_ctx, CIPHERSUITE) != 1){
 	   perror("SocketCLient.cpp : Unable to set cipher list");
 	}else{
-		cipher("Client loaded Cipher : ", CIPHERSUITE);
+		cipherAll("Client loaded Cipher : ", CIPHERSUITE);
 	}
 
 	if(ssl_ctx){
@@ -203,7 +203,7 @@ std::pair<uint64_t, double> SocketClient::sslTcpConnect(){
 	uint64_t delta_cpu_sys_us = (eCpu.ru_stime.tv_sec - stCpu.ru_stime.tv_sec) * 1000000 + (eCpu.ru_stime.tv_usec - stCpu.ru_stime.tv_usec);
 	cpu("SocketServer.cpp : System CPU time : ", delta_cpu_sys_us);*/
 	uint64_t delta_cpu_us = (eCpu.tv_sec - stCpu.tv_sec) * 1000000 + (eCpu.tv_nsec - stCpu.tv_nsec) / 1000;
-	cpu("SocketServer.cpp : CPU time : ", delta_cpu_us);
+	cpu("SocketClient.cpp : CPU time : ", delta_cpu_us);
 	/*------------------------------------------------------------------------------------------------------------------------*/
 	cipher("SocketClient.cpp :  Client Used Cipher : ", SSL_get_cipher(conn));
 
@@ -258,6 +258,7 @@ int SocketClient::sslTcpClosure(){
 		BIO_free(this->bio);
 		this->conn = NULL;
 	}
+	cout << endl;
 	return 0;
 }
 
