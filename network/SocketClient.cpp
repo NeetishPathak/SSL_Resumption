@@ -141,7 +141,7 @@ std::pair<uint64_t, double> SocketClient::sslTcpConnect(){
 					SSL_SESSION_free(this->sessionId);
 				}
 			}*/
-			//cout << "Resumption Code is activated" << endl;
+			cout << "Resumption Code is activated" << endl;
 		}
 
 		/*Another way of resumption*/
