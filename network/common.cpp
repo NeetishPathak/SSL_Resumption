@@ -1,6 +1,6 @@
 #include "common.h"
 
-const char* testCaseNames[] = {"NONE", "TLS1_2_NO_RESUMPTION", "TLS1_2_SESSION_IDS", "TLS1_3_NO_RESUMPTION" \
+const char* testCaseNames[] = {"NONE", "TLS1_2_NO_RESUMPTION", "TLS1_2_SESSION_IDS", "TLS1_2_SESSION_TICKETS", "TLS1_3_NO_RESUMPTION" \
 								"TLS1_3_PSK", "TLS1_3_0_RTT", "TLS1_3_PRE_PSK", "TLS1_2_FALSE_START"};
 
 void handle_error(const char *file, int lineno, const char	*msg){
