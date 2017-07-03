@@ -8,6 +8,78 @@ char *sess_out = NULL;
 bool resumeInput = FALSE;
 BIO * bio_err = BIO_new_fp(stderr,0x00 | (((1 | 0x8000) & 0x8000) == 0x8000 ? 0x10 : 0));
 
+static SSL_SESSION *psksess = NULL;
+/* Default PSK identity and key */
+static char *psk_identity = "Client_identity";
+
+
+static int psk_use_session_cb(SSL *s, const EVP_MD *md,
+                              const unsigned char **id, size_t *idlen,
+                              SSL_SESSION **sess)
+{
+    SSL_SESSION *usesess = NULL;
+    const SSL_CIPHER *cipher = NULL;
+
+    if (psksess != NULL) {
+        SSL_SESSION_up_ref(psksess);
+        usesess = psksess;
+    } else {
+
+        long key_len;
+        unsigned char *key = OPENSSL_hexstr2buf(psk_key, &key_len);
+
+        if (key == NULL) {
+            BIO_printf(bio_err, "Could not convert PSK key '%s' to buffer\n",
+                       psk_key);
+            return 0;
+        }
+
+        if (key_len == EVP_MD_size(EVP_sha256()))
+            cipher = SSL_CIPHER_find(s, tls13_aes128gcmsha256_id);
+        else if(key_len == EVP_MD_size(EVP_sha384()))
+            cipher = SSL_CIPHER_find(s, tls13_aes256gcmsha384_id);
+
+        if (cipher == NULL) {
+            /* Doesn't look like a suitable TLSv1.3 key. Ignore it */
+            OPENSSL_free(key);
+            *id = NULL;
+            *idlen = 0;
+            *sess = NULL;
+            return 0;
+        }
+        usesess = SSL_SESSION_new();
+        if (usesess == NULL
+                || !SSL_SESSION_set1_master_key(usesess, key, key_len)
+                || !SSL_SESSION_set_cipher(usesess, cipher)
+                || !SSL_SESSION_set_protocol_version(usesess, TLS1_3_VERSION)) {
+            OPENSSL_free(key);
+            goto err;
+        }
+        OPENSSL_free(key);
+    }
+
+    cipher = SSL_SESSION_get0_cipher(usesess);
+    if (cipher == NULL)
+        goto err;
+    if (md != NULL && SSL_CIPHER_get_handshake_digest(cipher) != md) {
+        /* PSK not usable, ignore it */
+        *id = NULL;
+        *idlen = 0;
+        *sess = NULL;
+        SSL_SESSION_free(usesess);
+    } else {
+
+        *sess = usesess;
+        *id = (unsigned char *)psk_identity;
+        *idlen = strlen(psk_identity);
+    }
+    return 1;
+
+ err:
+    SSL_SESSION_free(usesess);
+    return 0;
+}
+
 
 static int new_session_cb(SSL* ssl, SSL_SESSION * sess){
 
@@ -74,6 +146,11 @@ int SocketClient::connectToServer(){
 											| SSL_SESS_CACHE_NO_INTERNAL_STORE);
 		SSL_CTX_sess_set_new_cb(ssl_ctx, new_session_cb);
 	}
+
+	/*Load Pre Shared Session in case of TLS 1_3*/
+	if(PRE_SHARED_KEY_TLS1_3)
+	if (psk_key != NULL || psksess != NULL)
+	        SSL_CTX_set_psk_use_session_callback(ssl_ctx, psk_use_session_cb);
 
 
 	/* Load the client certificate into the SSL_CTX structure */
@@ -158,8 +235,6 @@ std::pair<uint64_t, double> SocketClient::sslTcpConnect(){
 	bio = BIO_new_connect((this->serverName + ":" + this->portNumber).c_str());
 	if(!bio)
 		int_error("Error creating connection BIO");
-	//usleep(10000);
-	//BIO_set_nbio(bio, 200);
 
 	if(BIO_do_connect(bio) <= 0){
 		fail("SocketClient.cpp : TCP connection failed");

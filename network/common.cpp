@@ -1,7 +1,13 @@
 #include "common.h"
 
 const char* testCaseNames[] = {"NONE", "TLS1_2_NO_RESUMPTION", "TLS1_2_SESSION_IDS", "TLS1_2_SESSION_TICKETS", "TLS1_3_NO_RESUMPTION" \
-								"TLS1_3_PSK", "TLS1_3_0_RTT", "TLS1_3_PRE_PSK", "TLS1_2_FALSE_START"};
+								"TLS1_3_PSK", "TLS1_3_PRE_PSK", "TLS1_3_0_RTT" "TLS1_2_FALSE_START"};
+
+
+char *psk_key = "0533c95c9ecc310ee07cb70a316c45448487c1f70bbea99fe6616f3348305677";           /* by default PSK is not used */
+const unsigned char tls13_aes128gcmsha256_id[] = { 0x13, 0x01 };
+const unsigned char tls13_aes256gcmsha384_id[] = { 0x13, 0x02 };
+
 
 void handle_error(const char *file, int lineno, const char	*msg){
 	fprintf(stderr, " ** %s %i %s \n", file, lineno, msg);

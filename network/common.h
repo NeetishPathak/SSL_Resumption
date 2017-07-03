@@ -64,8 +64,8 @@ enum{
 	TLS1_2_SESSION_TICKETS,
 	TLS1_3_NO_RESUMPTION,
 	TLS1_3_PSK,
-	TLS1_3_0_RTT,
 	TLS1_3_PRE_PSK,
+	TLS1_3_0_RTT,
 	TLS1_2_FALSE_START
 } TESTCASEENUMS;
 
@@ -76,40 +76,52 @@ enum{
 #define FILE STR(TESTCASE) "_" STR(CIPHERTYPE) "_TS_"
 
 #if(TESTCASE == 1)
+
 #define SESS_RESUME FALSE
-#define TLSv1_3 FALSE
 #define NO_SESSION_TICKETS TRUE
+#define TLSv1_3 FALSE
+#define PRE_SHARED_KEY_TLS1_3 FALSE
 
 #elif(TESTCASE == 2)
 #define SESS_RESUME TRUE
 #define TLSv1_3 FALSE
 #define NO_SESSION_TICKETS TRUE
+#define PRE_SHARED_KEY_TLS1_3 FALSE
 
 #elif(TESTCASE == 3)
 #define SESS_RESUME TRUE
 #define TLSv1_3 FALSE
 #define NO_SESSION_TICKETS FALSE
+#define PRE_SHARED_KEY_TLS1_3 FALSE
 
 #elif(TESTCASE == 4)
 #define SESS_RESUME FALSE
 #define TLSv1_3 TRUE
 #define NO_SESSION_TICKETS FALSE
+#define PRE_SHARED_KEY_TLS1_3 FALSE
 
 #elif(TESTCASE == 5)
 
 #define SESS_RESUME TRUE
 #define TLSv1_3 TRUE
 #define NO_SESSION_TICKETS FALSE
+#define PRE_SHARED_KEY_TLS1_3 FALSE
+
+#elif(TESTCASE == 6)
+
+#define SESS_RESUME FALSE
+#define TLSv1_3 TRUE
+#define NO_SESSION_TICKETS FALSE
+#define PRE_SHARED_KEY_TLS1_3 TRUE
 
 #else
-
 #define SESS_RESUME FALSE
 #define TLSv1_3 FALSE
 #define NO_SESSION_TICKETS TRUE
 
 #endif
 
-#define HANDSHAKES_CNT 999
+#define HANDSHAKES_CNT 1
 #define HANDSHAKES_CNT_LOOP TRUE
 
 
@@ -131,6 +143,9 @@ enum{
 
 /*extern values*/
 extern const char* testCaseNames[];
+extern char *psk_key;           /* by default PSK is not used */
+extern const unsigned char tls13_aes128gcmsha256_id[];
+extern const unsigned char tls13_aes256gcmsha384_id[];
 
 /*Common functions*/
 #define int_error(msg) handle_error(__FILE__, __LINE__, msg)

@@ -15,8 +15,8 @@ typedef struct simple_ssl_session_st {
 } simple_ssl_session;
 
 static simple_ssl_session *first = NULL;
-
-
+static SSL_SESSION *psksess = NULL;
+static char *psk_identity = "Client_identity";
 
 void* app_malloc(int sz, const char *what)
 {
@@ -129,6 +129,58 @@ static void free_sessions(void)
     first = NULL;
 }
 
+#define TLS13_AES_128_GCM_SHA256_BYTES  ((const unsigned char *)"\x13\x01")
+#define TLS13_AES_256_GCM_SHA384_BYTES  ((const unsigned char *)"\x13\x02")
+
+static int psk_find_session_cb(SSL *ssl, const unsigned char *identity,
+                               size_t identity_len, SSL_SESSION **sess)
+{
+    SSL_SESSION *tmpsess = NULL;
+    unsigned char *key;
+    long key_len;
+    const SSL_CIPHER *cipher = NULL;
+    cout << "Session PSK entry on Server Side" << endl;
+    if (strlen(psk_identity) != identity_len
+            || memcmp(psk_identity, identity, identity_len) != 0)
+        return 0;
+
+    if (psksess != NULL) {
+        SSL_SESSION_up_ref(psksess);
+        *sess = psksess;
+        return 1;
+    }
+
+    key = OPENSSL_hexstr2buf(psk_key, &key_len);
+    if (key == NULL) {
+        BIO_printf(bio_err, "Could not convert PSK key '%s' to buffer\n",
+                   psk_key);
+        return 0;
+    }
+
+    if (key_len == EVP_MD_size(EVP_sha256()))
+        cipher = SSL_CIPHER_find(ssl, tls13_aes128gcmsha256_id);
+    else if(key_len == EVP_MD_size(EVP_sha384()))
+        cipher = SSL_CIPHER_find(ssl, tls13_aes256gcmsha384_id);
+
+    if (cipher == NULL) {
+        /* Doesn't look like a suitable TLSv1.3 key. Ignore it */
+        OPENSSL_free(key);
+        return 0;
+    }
+
+    tmpsess = SSL_SESSION_new();
+    if (tmpsess == NULL
+            || !SSL_SESSION_set1_master_key(tmpsess, key, key_len)
+            || !SSL_SESSION_set_cipher(tmpsess, cipher)
+            || !SSL_SESSION_set_protocol_version(tmpsess, SSL_version(ssl))) {
+        OPENSSL_free(key);
+        return 0;
+    }
+    OPENSSL_free(key);
+    *sess = tmpsess;
+    cout << "Session used on Server Side" << endl;
+    return 1;
+}
 
 SocketServer::SocketServer(std::string portNumber){
 
@@ -185,6 +237,11 @@ int SocketServer::listen(){
 	}else{
 		pass("SocketClient.cpp : ssl Context created successfully");
 	}
+
+	/*Load Pre Shared Session in case of TLS 1_3*/
+	if(PRE_SHARED_KEY_TLS1_3)
+	if (psk_key != NULL || psksess != NULL)
+	        SSL_CTX_set_psk_find_session_callback(ssl_ctx, psk_find_session_cb);
 
 	/* Load the client certificate into the SSL_CTX structure */
 	if (SSL_CTX_use_certificate_file(ssl_ctx, SERVER_CERT_KEY, SSL_FILETYPE_PEM) <= 0){

@@ -114,7 +114,7 @@ def open_file(path):
 
 #----------------------------------------------------------------------
 if __name__ == "__main__":
-	paths = ["TLS1_2_NoResumption.xlsx","TLS1_2_Session_Ids.xlsx","TLS1_2_Session_Tickets.xlsx","TLS1_3_NoResumption.xlsx","TLS1_3_PSK.xlsx"]
+	paths = ["TLS1_2_NoResumption.xlsx","TLS1_2_Session_Ids.xlsx","TLS1_2_Session_Tickets.xlsx","TLS1_3_NoResumption.xlsx","TLS1_3_PSK.xlsx","Spl_1.xlsx","Spl_2.xlsx"]
 	print(" Test cases \n"
       	"0. TLS1_2 No Resumption\n"
       	"1. TLS1_2 Resumption Using Session Ids\n"
