@@ -1,12 +1,12 @@
 # SSL_Resumption
 
-##Pre-requisites
-Openssl library version OpenSSL 1.1.1-dev
-To install the latest OpenSSL master branch, follow the following steps
-$ git clone https://github.com/openssl/openssl.git
-$ cd openssl
-$ ./config --prefix=/usr/local
-(–prefix is used to mention the top of the installation directory tree. Default directory is /usr/local for unix system)
+## Pre-requisites
+Openssl library version OpenSSL 1.1.1-dev <br />
+To install the latest OpenSSL master branch, follow the following steps: <br />
+$ git clone https://github.com/openssl/openssl.git <br />
+$ cd openssl <br />
+$ ./config --prefix=/usr/local <br />
+(–prefix is used to mention the top of the installation directory tree. Default directory is /usr/local for unix system) <br />
 $ ./config enable-tls1_3
 (do step 4 only if tls1.3 is to be enabled)
 $ make -j2
