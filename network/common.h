@@ -114,11 +114,6 @@ enum{
 #define NO_SESSION_TICKETS FALSE
 #define PRE_SHARED_KEY_TLS1_3 TRUE
 
-#else
-#define SESS_RESUME FALSE
-#define TLSv1_3 FALSE
-#define NO_SESSION_TICKETS TRUE
-
 #endif
 
 #define HANDSHAKES_CNT 1
