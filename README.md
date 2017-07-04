@@ -19,7 +19,7 @@ $ openssl help <br />
 	e.g sh build.sh 4 7 <br />
 	
 2) The client server pair can be used to test different testCases with various ciphersuites. Following Testcases Codes are supported. <br />
-### TestCase_Code	&ensp;	Test case Explanation
+### TestCase_Code	&ensp;&ensp;	Test case Explanation
 	1		TLS1.2_No Session Resumption Connection
 	2		TLS1.2_Session Resumption using Session Identifiers
 	3		TLS1.2_Session Resumption using Session Tickets
@@ -27,7 +27,7 @@ $ openssl help <br />
 	5		TLS1.3_Session Resumption using Shared PSK
 	6		TLS1.3_Session Resumption using External PSK
 							
-### Ciphersuite_Code	&ensp;	CipherSuite Explanation
+### Ciphersuite_Code	&ensp;&ensp;	CipherSuite Explanation
 	1		ECDHE-ECDSA-AES256-GCM-SHA384 with X25519 Elliptic curve
 	11		ECDHE-ECDSA-AES256-GCM-SHA384 with prime256v1 EC Param, 2048 bits DH Param
 	2		ECDHE-RSA-AES256-GCM-SHA384 with X25519 Elliptic curve, 2048 bits RSA keys
