@@ -19,27 +19,27 @@ $ openssl help <br />
 	e.g sh build.sh 4 7 <br />
 	
 2) The client server pair can be used to test different testCases with various ciphersuites. Following Testcases Codes are supported. <br />
-### TestCase_Code	&ensp;				Test case Explanation
-	1				TLS1.2_No Session Resumption Connection
-	2				TLS1.2_Session Resumption using Session Identifiers
-	3				TLS1.2_Session Resumption using Session Tickets
-	4				TLS1.3_No Session Resumption Connection
-	5				TLS1.3_Session Resumption using Shared PSK
-	6				TLS1.3_Session Resumption using External PSK
+### TestCase_Code	&ensp;	Test case Explanation
+	1		TLS1.2_No Session Resumption Connection
+	2		TLS1.2_Session Resumption using Session Identifiers
+	3		TLS1.2_Session Resumption using Session Tickets
+	4		TLS1.3_No Session Resumption Connection
+	5		TLS1.3_Session Resumption using Shared PSK
+	6		TLS1.3_Session Resumption using External PSK
 							
-### Ciphersuite_Code	&ensp;			CipherSuite Explanation
-	1			ECDHE-ECDSA-AES256-GCM-SHA384 with X25519 Elliptic curve
-	11			ECDHE-ECDSA-AES256-GCM-SHA384 with prime256v1 EC Param, 2048 bits DH Param
-	2			ECDHE-RSA-AES256-GCM-SHA384 with X25519 Elliptic curve, 2048 bits RSA keys
-	21			ECDHE-RSA-AES256-GCM-SHA384 with prime256v1 EC Param, 2048 bits DH Param, 2048 bits RSA keys
-	3			DHE-RSA-AES256-GCM-SHA384 with 2048 bits DH Param
-	4			DHE-RSA-AES256-GCM-SHA384 with 1024 bits DH Param
-	5			AES256-GCM-SHA384 with 3072 bits RSA keys
-	6			AES256-GCM-SHA384 with 2048 bits RSA keys
-	7			TLS13-AES-128-GCM-SHA256 with X25519 Elliptic Curve
-	71			TLS13-AES-128-GCM-SHA256 with prime256v1 EC Param, 2048 bits DH Param
-	8			TLS13-AES-128-GCM-SHA256 with X25519 Elliptic curve, 2048 bits RSA keys
-	81			TLS13-AES-128-GCM-SHA256 with prime256v1 EC Param, 2048 bits DH Param, 2048 bits RSA keys
+### Ciphersuite_Code	&ensp;	CipherSuite Explanation
+	1		ECDHE-ECDSA-AES256-GCM-SHA384 with X25519 Elliptic curve
+	11		ECDHE-ECDSA-AES256-GCM-SHA384 with prime256v1 EC Param, 2048 bits DH Param
+	2		ECDHE-RSA-AES256-GCM-SHA384 with X25519 Elliptic curve, 2048 bits RSA keys
+	21		ECDHE-RSA-AES256-GCM-SHA384 with prime256v1 EC Param, 2048 bits DH Param, 2048 bits RSA keys
+	3		DHE-RSA-AES256-GCM-SHA384 with 2048 bits DH Param
+	4		DHE-RSA-AES256-GCM-SHA384 with 1024 bits DH Param
+	5		AES256-GCM-SHA384 with 3072 bits RSA keys
+	6		AES256-GCM-SHA384 with 2048 bits RSA keys
+	7		TLS13-AES-128-GCM-SHA256 with X25519 Elliptic Curve
+	71		TLS13-AES-128-GCM-SHA256 with prime256v1 EC Param, 2048 bits DH Param
+	8		TLS13-AES-128-GCM-SHA256 with X25519 Elliptic curve, 2048 bits RSA keys
+	81		TLS13-AES-128-GCM-SHA256 with prime256v1 EC Param, 2048 bits DH Param, 2048 bits RSA keys
 
 #### Note: 
 CipherSuite_Code 1, 11, 2, 21, 3, 4, 5, 6 can be only used with TLS 1.2 (TestCase_Code 1,2 and 3) <br />
