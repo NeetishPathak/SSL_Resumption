@@ -3,6 +3,7 @@ Statistics Directory contains generated client Server Logs and TestCases Directo
 
 ## TestCases Directory <br />
 TestCases Directory contains excel worksheets with Latency and CPU usage statistics for the following test cases performed <br />
+
 0) TLS1.2 No rsesumption
 1) TLS 1.2 Resumption with Session Identifers
 2) TLS 1.2 Resumption with Session Tickets
