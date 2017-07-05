@@ -116,7 +116,7 @@ enum{
 
 #endif
 
-#define HANDSHAKES_CNT 1
+#define HANDSHAKES_CNT 999
 #define HANDSHAKES_CNT_LOOP TRUE
 
 
