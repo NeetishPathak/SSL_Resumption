@@ -137,7 +137,7 @@ def plots(testCase):
 	print(" Benchmarking Plots \n"
 	  "0. Latency\n"
 	  "1. CPU Usage")
-	plotNum = input("Enter your choice here: ")
+	plotNum = input("Enter your choice here plot type: ")
 	
 	data = []
 	
@@ -317,9 +317,11 @@ if __name__ == "__main__":
       	"2. TLS1_2 Resumption Using Session Tickets\n"
       	"3. TLS1_3 No Resumption\n"
       	"4. TLS1_3 Resumption using Shared key\n"
-	"5. TLS1_3 Resumption External PSK")
+	"5. TLS1_3 Resumption External PSK\n"
+	"6. TLS 1.2 No Resumption Far-off Machines \n"
+	"7. TLS 1.3 No Resumption Far-off Machines ")
 	
-	testCase = input("Enter your choice here: ")
+	testCase = input("Enter your choice here for testCase Number: ")
 	open_file(paths[testCase])
 	plots(testCase)
 
