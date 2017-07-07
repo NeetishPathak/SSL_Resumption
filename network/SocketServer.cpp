@@ -145,6 +145,7 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity,
         return 0;
 
     if (psksess != NULL) {
+    	cout << "Session is found on the server side" << endl;
         SSL_SESSION_up_ref(psksess);
         *sess = psksess;
         return 1;
@@ -221,10 +222,6 @@ int SocketServer::listen(){
 
 	const unsigned char normal_user = '1';
 	int admin_user = 2;
-	SSL_CTX_set_session_id_context(ssl_ctx, &normal_user, sizeof(normal_user));
-	//SSL_CTX_set_session_cache_mode(ssl_ctx, SSL_SESS_CACHE_BOTH);
-	//SSL_CTX_set_timeout(ssl_ctx, 600);
-	//init_session_cache_ctx(this->ssl_ctx);
 
 	if(NO_SESSION_TICKETS)
 	SSL_CTX_set_options(this->ssl_ctx, SSL_OP_NO_TICKET);
@@ -233,15 +230,16 @@ int SocketServer::listen(){
 	SSL_CTX_set_min_proto_version(ssl_ctx, MIN_TLS_VERSION);
 
 	if(NULL == ssl_ctx){
-		fail("SocketClient.cpp : ssl_ctx object creation failed"); perror("");
+		fail("SocketServer.cpp : ssl_ctx object creation failed"); perror("");
 	}else{
-		pass("SocketClient.cpp : ssl Context created successfully");
+		pass("SocketServer.cpp : ssl Context created successfully");
 	}
 
-	/*Load Pre Shared Session in case of TLS 1_3*/
-	if(PRE_SHARED_KEY_TLS1_3)
-	if (psk_key != NULL || psksess != NULL)
-	        SSL_CTX_set_psk_find_session_callback(ssl_ctx, psk_find_session_cb);
+	SSL_CTX_set_session_id_context(ssl_ctx, &normal_user, sizeof(normal_user));
+	//SSL_CTX_set_session_cache_mode(ssl_ctx, SSL_SESS_CACHE_BOTH);
+	//SSL_CTX_set_timeout(ssl_ctx, 600);
+	//init_session_cache_ctx(this->ssl_ctx);
+
 
 	/* Load the client certificate into the SSL_CTX structure */
 	if (SSL_CTX_use_certificate_file(ssl_ctx, SERVER_CERT_KEY, SSL_FILETYPE_PEM) <= 0){
@@ -371,6 +369,32 @@ int SocketServer::listen(){
 			fail("SocketServer.cpp : create new SSL structure failed");
 		}
 
+		/*Load Pre Shared Session in case of TLS 1_3*/
+		if(PRE_SHARED_KEY_TLS1_3){
+		char *psksessf =  SESS_OUT;
+		if (psksessf != NULL) {
+				BIO *stmp = BIO_new_file(psksessf, "r");
+
+				if (stmp == NULL) {
+					BIO_printf(bio_err, "Can't open PSK session file %s\n", psksessf);
+					ERR_print_errors(bio_err);
+					//goto end;
+				}
+				psksess = PEM_read_bio_SSL_SESSION(stmp, NULL, 0, NULL);
+				BIO_free(stmp);
+				if (psksess == NULL) {
+					BIO_printf(bio_err, "Can't read PSK session file %s\n", psksessf);
+					ERR_print_errors(bio_err);
+					//goto end;
+				}
+
+			}
+
+			if (psk_key != NULL || psksess != NULL)
+				SSL_set_psk_find_session_callback(this->conn, psk_find_session_cb);
+		}
+
+
 		SSL_set_bio(conn, this->bioClient, this->bioClient);
 		
 		/*SocketServer.cpp : Time Measurement for SSL connection*/
@@ -395,7 +419,6 @@ int SocketServer::listen(){
 		}else{
 			pass("SocketServer.cpp : SSL accept is successful");
 		}
-
 		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 		clock_gettime(CLOCK_THREAD_CPUTIME_ID, &eCpu);
 		/*if(getrusage(RUSAGE_SELF, &eCpu) == -1){

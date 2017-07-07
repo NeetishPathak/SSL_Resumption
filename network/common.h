@@ -75,6 +75,9 @@ enum{
 //#define CIPHERTYPE 1
 #define FILE STR(TESTCASE) "_" STR(CIPHERTYPE) "_TS_"
 
+/*Session File*/
+#define SESS_OUT "./network/credentials/sessionFiles/sess_client.pem"
+//#define SESS_OUT NULL
 #if(TESTCASE == 1)
 
 #define SESS_RESUME FALSE
@@ -116,7 +119,7 @@ enum{
 
 #endif
 
-#define HANDSHAKES_CNT 999
+#define HANDSHAKES_CNT 1
 #define HANDSHAKES_CNT_LOOP TRUE
 
 
@@ -162,3 +165,5 @@ std::string tostring(const T& t);
 
 
 #endif
+
+

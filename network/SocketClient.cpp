@@ -21,6 +21,7 @@ static int psk_use_session_cb(SSL *s, const EVP_MD *md,
     const SSL_CIPHER *cipher = NULL;
 
     if (psksess != NULL) {
+    	cout << "Session found on client side File" << endl;
         SSL_SESSION_up_ref(psksess);
         usesess = psksess;
     } else {
@@ -68,7 +69,7 @@ static int psk_use_session_cb(SSL *s, const EVP_MD *md,
         *sess = NULL;
         SSL_SESSION_free(usesess);
     } else {
-
+    	cout << "Client side : session is read and set" << endl;
         *sess = usesess;
         *id = (unsigned char *)psk_identity;
         *idlen = strlen(psk_identity);
@@ -89,8 +90,10 @@ static int new_session_cb(SSL* ssl, SSL_SESSION * sess){
 	if(stmp == NULL){
 		BIO_printf(bio_err,"Error writing session file %s\n",SESS_OUT);
 	}else{
-		//fprintf(stderr,"Session getting set\n");
+		fprintf(stderr,"Session getting set\n");
 		PEM_write_bio_SSL_SESSION(stmp,sess);
+		SSL_SESSION_print_keylog(bio_err, sess);
+		BIO_printf(bio_err,"");
 		BIO_free(stmp);
 		resumeInput = TRUE;
 	}
@@ -147,11 +150,6 @@ int SocketClient::connectToServer(){
 		SSL_CTX_sess_set_new_cb(ssl_ctx, new_session_cb);
 	}
 
-	/*Load Pre Shared Session in case of TLS 1_3*/
-	if(PRE_SHARED_KEY_TLS1_3)
-	if (psk_key != NULL || psksess != NULL)
-	        SSL_CTX_set_psk_use_session_callback(ssl_ctx, psk_use_session_cb);
-
 
 	/* Load the client certificate into the SSL_CTX structure */
 	if (SSL_CTX_use_certificate_file(ssl_ctx, CLIENT_CERT_KEY, SSL_FILETYPE_PEM) <= 0){
@@ -186,7 +184,7 @@ int SocketClient::connectToServer(){
 std::pair<uint64_t, double> SocketClient::sslTcpConnect(){
 
 	/*Attaching the SSL connection to the Socket*/
-	if((this->conn = SSL_new(ssl_ctx)) == NULL){
+	if((this->conn = SSL_new(this->ssl_ctx)) == NULL){
 		perror("SocketClient.cpp : create new SSL failed ");
 		exit(1);
 	}
@@ -229,6 +227,35 @@ std::pair<uint64_t, double> SocketClient::sslTcpConnect(){
 		}
 		*/
 #endif
+
+
+	/*Load Pre Shared Session in case of TLS 1_3*/
+	if(PRE_SHARED_KEY_TLS1_3){
+		char *psksessf = SESS_OUT;
+
+		if (psksessf != NULL) {
+			BIO *stmp = BIO_new_file(psksessf, "r");
+
+			if (stmp == NULL) {
+				BIO_printf(bio_err, "Can't open PSK session file %s\n", psksessf);
+				ERR_print_errors(bio_err);
+				//goto end;
+			}
+			psksess = PEM_read_bio_SSL_SESSION(stmp, NULL, 0, NULL);
+			BIO_free(stmp);
+			if (psksess == NULL) {
+				BIO_printf(bio_err, "Can't read PSK session file %s\n", psksessf);
+				ERR_print_errors(bio_err);
+				//goto end;
+			}
+
+			//SSL_SESSION_print(bio_err, psksess);
+			//BIO_printf(bio_err,"");
+		}
+
+		if (psk_key != NULL || psksess != NULL)
+			SSL_set_psk_use_session_callback(this->conn, psk_use_session_cb);
+	}
 
 	/****Establish TCP connection****/
 	/*Setting up BIO*/

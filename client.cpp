@@ -40,8 +40,10 @@ int main(int argc, char **argv){
 		cout << "\nConnect to Server Again (1/0)" << endl;
 		cin >> connectAgain;
 		if(TRUE == connectAgain){
+
 			client.sslTcpConnect();
 			client.sslTcpClosure();
+
 		}else if(FALSE == connectAgain){
 			cout << "\033[1;36mExiting Client\033[0m " << endl;
 			break;

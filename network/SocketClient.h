@@ -40,9 +40,6 @@
 #define EC_SECP521R1_SERVER_CA KEYS_DIR"EC/EC_ServerKeys/server_primesecp521r1_ec.pem"
 #define DSA_SERVER_CA KEYS_DIR "DSA/dsa_cert_key.pem"
 
-/*Session File*/
-#define SESS_OUT "./network/credentials/sessionFiles/sess_client.pem"
-
 
 #if(CIPHERTYPE == 1 || CIPHERTYPE == 11)
 
