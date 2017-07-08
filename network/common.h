@@ -76,8 +76,8 @@ enum{
 #define FILE STR(TESTCASE) "_" STR(CIPHERTYPE) "_TS_"
 
 /*Session File*/
-#define SESS_OUT "./network/credentials/sessionFiles/sess_client.pem"
-//#define SESS_OUT NULL
+//#define SESS_OUT "./network/credentials/sessionFiles/sess_client.pem"
+#define SESS_OUT NULL
 #if(TESTCASE == 1)
 
 #define SESS_RESUME FALSE
