@@ -71,7 +71,7 @@
 #define PSK_BDATA "0533c95c9ecc310ee07cb70a316c45448487c1f70bbea99fe6616f3348305677"
 
 /*TestCase Run Count*/
-#define HANDSHAKES_CNT 4
+#define HANDSHAKES_CNT 1000
 #define HANDSHAKES_CNT_LOOP TRUE
 
 /*Log files*/

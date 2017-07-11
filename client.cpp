@@ -39,19 +39,17 @@ int main(int argc, char **argv){
 #if (HANDSHAKES_CNT_LOOP == TRUE)
 	int loopCnt = HANDSHAKES_CNT;
 	while(loopCnt--){
+		cout << "LoopCount " << HANDSHAKES_CNT-loopCnt << endl;
 		/*Make a client object*/
 		SocketClient client(argv[1], argc==5?argv[4]:PORT, tc, c);
 		/*Connect the client to the server*/
 		client.connectToServer();
-		/*Make a TCP/SSL connect*/
-		//client.sslTcpConnect();
 		/*Close TCP/SSL connection*/
 		client.sslTcpClosure();
 		/*Disconnect with the server*/
 		if(client.isServerConnected()){
 			client.disconnectFromServer();
 		}
-		cout << "LoopCount " << HANDSHAKES_CNT-loopCnt << endl;
 	}
 #endif
 
