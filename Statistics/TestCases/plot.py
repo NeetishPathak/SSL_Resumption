@@ -62,10 +62,10 @@ def open_file(path):
 	book = xlrd.open_workbook(path)
  
     	# print number of sheets
-	print book.nsheets
+	#print book.nsheets
  
 	# print sheet names
-	print book.sheet_names()
+	#print book.sheet_names()
  
 	# get the first worksheet
 	first_sheet = book.sheet_by_index(0)
@@ -86,7 +86,7 @@ def open_file(path):
 	
 	for i in xrange(0,n):
 		sheet_name = book.sheet_names()[i]
-		print sheet_name
+		#print sheet_name
 		cur_sheet = book.sheet_by_index(i)
 		m = cur_sheet.row_values(0)
 		f[i].write('cipher,mean,St Dev, median,90th Pct,max,min')
@@ -101,14 +101,14 @@ def open_file(path):
 			percentile = np.percentile(X1, 90)
 			counts = np.bincount(np.int32(X1))
 			
-			print np.argmax(counts)
-			print counts
-			print np.max(X1)
-			print np.min(X1)
-			print mean_X1
-			print var_X1
-			print  median_X1
-			print percentile
+			#print np.argmax(counts)
+			#print counts
+			#print np.max(X1)
+			#print np.min(X1)
+			#print mean_X1
+			#print var_X1
+			#print  median_X1
+			#print percentile
 			#showHistogram(X1, "X1")
 			f[i].write(str(m[j]));f[i].write(',')
 			f[i].write(str(mean_X1));f[i].write(',')
@@ -150,14 +150,14 @@ def plots(testCase):
 	
 	d1 = list(file_object_cl)
 	d2 = list(file_object_sl)
-	print d1 + d2
+	#print d1 + d2
 	length = len(d1)
 	
 	data1 = []
 	for x in xrange(1,length):
-		print x
+		#print x
 		d = d1[x] + d2[x]
-		print d
+		#print d
 		data1.append(d)
 	
 	
@@ -169,20 +169,20 @@ def plots(testCase):
 	
 	d1 = list(file_object_cc)
 	d2 = list(file_object_sc)
-	print d1 + d2
+	#print d1 + d2
 	length = len(d1)
 	
 	data2 = []
 	for x in xrange(1,length):
-		print x
+		#print x
 		d = d1[x] + d2[x]
-		print d
+		#print d
 		data2.append(d)
 	
 	data.append(data1)
 	data.append(data2)
 	
-	print data
+	#print data
 	'''
 	handshakes = 100
 	data = [
@@ -294,9 +294,15 @@ def plots(testCase):
 	elif testCase == 5:
 		plotType(plotNum,"TLS1_3_External_PSK");
 	elif testCase == 6:
-		plotType(plotNum,"TLS1_2_No_Resumption");
+		plotType(plotNum,"TLS1_3_External_PSK_Session_File");
 	elif testCase == 7:
+		plotType(plotNum,"TLS1_2_No_Resumption");
+	elif testCase == 8:
 		plotType(plotNum,"TLS1_3_No_Resumption");
+	elif testCase == 9:
+		plotType(plotNum,"TLS1_2_Resumption");
+	elif testCase == 10:
+		plotType(plotNum,"TLS1_3_Resumption");
 	else:
 		plotType(plotNum,"");
 	   
@@ -310,7 +316,7 @@ def plots(testCase):
 
 #----------------------------------------------------------------------
 if __name__ == "__main__":
-	paths = ["TLS1_2_NoResumption.xlsx","TLS1_2_Session_Ids.xlsx","TLS1_2_Session_Tickets.xlsx","TLS1_3_NoResumption.xlsx","TLS1_3_PSK.xlsx","TLS1_3_Ext_PSK.xlsx","Spl_1.xlsx","Spl_2.xlsx"]
+	paths = ["TLS1_2_NoResumption.xlsx","TLS1_2_Session_Ids.xlsx","TLS1_2_Session_Tickets.xlsx","TLS1_3_NoResumption.xlsx","TLS1_3_PSK.xlsx","TLS1_3_Ext_PSK.xlsx","TLS1_3_Ext_PSK_SessFile.xlsx","Spl_1.xlsx","Spl_2.xlsx","Spl_3.xlsx","Spl_4.xlsx"]
 	print(" Test cases \n"
       	"0. TLS1_2 No Resumption\n"
       	"1. TLS1_2 Resumption Using Session Ids\n"
@@ -318,8 +324,11 @@ if __name__ == "__main__":
       	"3. TLS1_3 No Resumption\n"
       	"4. TLS1_3 Resumption using Shared key\n"
 	"5. TLS1_3 Resumption External PSK\n"
-	"6. TLS 1.2 No Resumption Far-off Machines \n"
-	"7. TLS 1.3 No Resumption Far-off Machines ")
+	"6. TLS1_3 Resumption External PSK Session File\n"
+	"7. TLS 1.2 No Resumption Far-off Machines \n"
+	"8. TLS 1.3 No Resumption Far-off Machines\n"
+	"9. TLS 1.2 Resumption Far-off Machines \n"
+	"10. TLS 1.3 Resumption Far-off Machines ")
 	
 	testCase = input("Enter your choice here for testCase Number: ")
 	open_file(paths[testCase])

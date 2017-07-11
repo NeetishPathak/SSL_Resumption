@@ -1,3 +1,9 @@
+/********************************************************************
+ * Filename : SocketServer.h
+ * Author: Neetish Pathak (nepathak@paypal.com)
+ * Description: 1) contains class definition for SocketServer class.
+ *				2) macros related to server certificates and keys
+ ********************************************************************/
 /*SocketServer.h*/
 
 #ifndef SOCKETSERVER_H_
@@ -7,7 +13,7 @@
 #include <signal.h>
 #include <atomic>
 
-/*openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 365 -out certificate.pem*/
+/*Keys and Certificates*/
 #define KEYS_DIR "./network/credentials/keys/"
 
 /*RSA Keys & certificates*/
@@ -39,118 +45,18 @@
 #define EC_SECP521R1_CLIENT_CA KEYS_DIR"EC/EC_ClientKeys/client_secp521r1_ec.pem"
 #define DSA_CLIENT_CA KEYS_DIR "DSA/dsa_cert_key.pem"
 
+/*ciphers for TLS 1.3*/
+#define TLS13_AES_128_GCM_SHA256_BYTES  ((const unsigned char *)"\x13\x01")
+#define TLS13_AES_256_GCM_SHA384_BYTES  ((const unsigned char *)"\x13\x02")
 
-#if(CIPHERTYPE == 1)
-
-#define SERVER_CERT_KEY ECDSA_SERVER_CERT_KEY_PRIME256V1
-#define CLIENT_CA	EC_PRIME256V1_CLIENT_CA
-#define DHPARAMS DHPARAMS_2048
-#define ECPARAMS ECPARAMS_PRIME256V1
-#define EN_ECPARAMS 0
-#define EN_DHPARAMS 0
-
-#elif(CIPHERTYPE == 11)
-
-#define SERVER_CERT_KEY ECDSA_SERVER_CERT_KEY_PRIME256V1
-#define CLIENT_CA	EC_PRIME256V1_CLIENT_CA
-#define DHPARAMS DHPARAMS_2048
-#define ECPARAMS ECPARAMS_PRIME256V1
-#define EN_ECPARAMS 1
-#define EN_DHPARAMS 1
-
-#elif(CIPHERTYPE == 2)
-
-#define SERVER_CERT_KEY RSA_SERVER_CERT_KEY_2048
-#define CLIENT_CA	RSA2048_CLIENT_CA
-#define DHPARAMS DHPARAMS_2048
-#define ECPARAMS ECPARAMS_PRIME256V1
-#define EN_ECPARAMS 0
-#define EN_DHPARAMS 0
-
-#elif(CIPHERTYPE == 21)
-
-#define SERVER_CERT_KEY RSA_SERVER_CERT_KEY_2048
-#define CLIENT_CA	RSA2048_CLIENT_CA
-#define DHPARAMS DHPARAMS_2048
-#define ECPARAMS ECPARAMS_PRIME256V1
-#define EN_ECPARAMS 1
-#define EN_DHPARAMS 1
-
-#elif(CIPHERTYPE == 3)
-
-#define SERVER_CERT_KEY RSA_SERVER_CERT_KEY_2048
-#define CLIENT_CA	RSA2048_CLIENT_CA
-#define DHPARAMS DHPARAMS_2048
-#define ECPARAMS ECPARAMS_PRIME256V1
-#define EN_ECPARAMS 0
-#define EN_DHPARAMS 1
-
-#elif (CIPHERTYPE == 4)
-
-#define SERVER_CERT_KEY RSA_SERVER_CERT_KEY_2048
-#define CLIENT_CA	RSA2048_CLIENT_CA
-#define DHPARAMS DHPARAMS_1024
-#define ECPARAMS ECPARAMS_PRIME256V1
-#define EN_ECPARAMS 0
-#define EN_DHPARAMS 1
-
-#elif(CIPHERTYPE == 5)
-
-#define SERVER_CERT_KEY RSA_SERVER_CERT_KEY_3072
-#define CLIENT_CA	RSA3072_CLIENT_CA
-#define DHPARAMS DHPARAMS_2048
-#define ECPARAMS ECPARAMS_PRIME256V1
-#define EN_ECPARAMS 0
-#define EN_DHPARAMS 0
-
-
-#elif(CIPHERTYPE == 6)
-
-#define SERVER_CERT_KEY RSA_SERVER_CERT_KEY_2048
-#define CLIENT_CA	RSA2048_CLIENT_CA
-#define DHPARAMS DHPARAMS_2048
-#define ECPARAMS ECPARAMS_PRIME256V1
-#define EN_ECPARAMS 0
-#define EN_DHPARAMS 0
-
-
-#elif(CIPHERTYPE == 7)
-
-#define SERVER_CERT_KEY ECDSA_SERVER_CERT_KEY_PRIME256V1
-#define CLIENT_CA	EC_PRIME256V1_CLIENT_CA
-#define DHPARAMS DHPARAMS_2048
-#define ECPARAMS ECPARAMS_PRIME256V1
-#define EN_ECPARAMS 0
-#define EN_DHPARAMS 0
-
-#elif(CIPHERTYPE == 71)
-
-#define SERVER_CERT_KEY ECDSA_SERVER_CERT_KEY_PRIME256V1
-#define CLIENT_CA	EC_PRIME256V1_CLIENT_CA
-#define DHPARAMS DHPARAMS_2048
-#define ECPARAMS ECPARAMS_PRIME256V1
-#define EN_ECPARAMS 1
-#define EN_DHPARAMS 1
-
-#elif(CIPHERTYPE == 8)
-
-#define SERVER_CERT_KEY RSA_SERVER_CERT_KEY_2048
-#define CLIENT_CA	RSA2048_CLIENT_CA
-#define DHPARAMS DHPARAMS_2048
-#define ECPARAMS ECPARAMS_PRIME256V1
-#define EN_ECPARAMS 0
-#define EN_DHPARAMS 0
-
-#elif(CIPHERTYPE == 81)
-
-#define SERVER_CERT_KEY RSA_SERVER_CERT_KEY_2048
-#define CLIENT_CA	RSA2048_CLIENT_CA
-#define DHPARAMS DHPARAMS_2048
-#define ECPARAMS ECPARAMS_PRIME256V1
-#define EN_ECPARAMS 1
-#define EN_DHPARAMS 1
-
-#endif
+/*simple_ssl_session_st struct for session caching on server side*/
+typedef struct simple_ssl_session_st {
+    unsigned char *id;
+    unsigned int idlen;
+    unsigned char *der;
+    int derlen;
+    struct simple_ssl_session_st *next;
+} simple_ssl_session;
 
 class SocketServer{
 private:
@@ -159,10 +65,15 @@ private:
 	SSL_CTX *ssl_ctx;
 	SSL* conn;
 	BIO	*bio, *bioClient;
-	std::ofstream serverOpFile;
-	
+	std::string serverCertKey;
+	std::string clientCA;
+	std::string dhParams;
+	std::string ecParams;
+	bool enableDhParams;
+	bool enableEcParams;
+	void loadServerKeys(cipher_t);
 public:
-	SocketServer(std::string portNumber);
+	SocketServer(std::string portNumber, test_Case_Num tc, cipher_t c);
 	virtual int listen();
 	virtual int send(std::string message);
 	virtual std::string receive(int size);

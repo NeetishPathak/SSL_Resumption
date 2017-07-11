@@ -1,90 +1,63 @@
+/********************************************************************
+ * Filename : client.cpp
+ * Author: Neetish Pathak (nepathak@paypal.com)
+ * Description: 1) Contains the main method for the client program
+ ********************************************************************/
 /*client.cpp*/
 #include <iostream>
-#include <vector>
-#include <utility>
-
-#define CLOCK "\033[1;32m⏰ \033[0m"
-#define CPU_USE "\033[1;34mCPU\033[0m"
-
 #include "./network/SocketClient.h"
 using namespace std;
-std::string getTabs(){
-	std::string s = "";
-	for(int i=1; i<CIPHERTYPE; ++i){
-		s += ",";
-	}
-	return s;
-}
 
+/*********************************************************************
+ * Function: main
+ * Parameters: int argc, char** argv
+ * Return value: int
+ * Description: main program for client
+ * 				argc: no. of input arguments
+ * 				argv: input arguments
+ * *******************************************************************/
 int main(int argc, char **argv){
-	if(argc < 2){
-		perror("client.cpp : Incorrect usage:  ./client <IP of server> OR ./client <IP of server> <PortNumber> ");
+	/*Check input parameters*/
+	if(argc < 4 || argc > 5){
+		perror("client.cpp : Incorrect usage:  ./client <IP of server> <testCase> <ciphertype> OR ./client <IP of server> <testCase> <cipherType> <PortNumber>");
 		return 1;
 	}
-	runTestCase("Client - Running test Case", testCaseNames[TESTCASE]);
-	SocketClient client(argv[1], argc==3?argv[2]:PORT);
-	int connectAgain = FALSE;
-	pair<uint64_t, double>  clientStats;
-	client.connectToServer();
 
+	/*Read the test Case and the cipher type*/
+	test_Case_Num tc = (test_Case_Num)(atoi(argv[2]));
+	cipher_t c = (cipher_t)(atoi(argv[3]));
+
+	/*Open the client Log file*/
+	clientOpFile.open(setClientLogFileName(tc,c).c_str(),std::ofstream::out);
+
+/*Make program for extensible for multi threads*/
 #if CLIENT_THREADS_ON
 	initializeClientConnThreads();
 	client.sslTcpClosure();
-#else
-	clientStats = client.sslTcpConnect();
-	client.sslTcpClosure();
 #endif
 
-#if (HANDSHAKES_CNT_LOOP == 0)
-	while(1){
-		cout << "\nConnect to Server Again (1/0)" << endl;
-		cin >> connectAgain;
-		if(TRUE == connectAgain){
-
-			client.sslTcpConnect();
-			client.sslTcpClosure();
-
-		}else if(FALSE == connectAgain){
-			cout << "\033[1;36mExiting Client\033[0m " << endl;
-			break;
-		}else{
-			cout << "Invalid Selection " << endl;
-			break;
-		}
-	}
-#else
-	//std::ofstream testReportFile;
-	//testReportFile.open(CLIENT_FILENAME,std::ofstream::out);
-	//testReportFile << "ECDSA256_ECDHE256, RSA2048_ECDHE256, RSA2048_DHE2048, RSA2048_DHE1024, RSA3072, RSA2048\n";
+#if (HANDSHAKES_CNT_LOOP == TRUE)
 	int loopCnt = HANDSHAKES_CNT;
-	pair<uint64_t, double> clientLoopStats;
-	connectAgain = TRUE;
 	while(loopCnt--){
-		pair<uint64_t, double> clientLoopLocalStats;
-		if(TRUE == connectAgain){
-			clientLoopLocalStats = client.sslTcpConnect();
-			client.sslTcpClosure();
-			clientLoopStats.first += clientLoopLocalStats.first;
-			clientLoopStats.second += clientLoopLocalStats.second;
-			//testReportFile << getTabs() << clientLoopLocalStats.first << "\n";
-		}else if(FALSE == connectAgain){
-			cout << "Exiting Client " << endl;
-			break;
-		}else{
-			cout << "Invalid Selection " << endl;
-			break;
+		/*Make a client object*/
+		SocketClient client(argv[1], argc==5?argv[4]:PORT, tc, c);
+		/*Connect the client to the server*/
+		client.connectToServer();
+		/*Make a TCP/SSL connect*/
+		//client.sslTcpConnect();
+		/*Close TCP/SSL connection*/
+		client.sslTcpClosure();
+		/*Disconnect with the server*/
+		if(client.isServerConnected()){
+			client.disconnectFromServer();
 		}
-		cout << "LoopCount " << loopCnt << endl;
+		cout << "LoopCount " << HANDSHAKES_CNT-loopCnt << endl;
 	}
-	clientLoopStats.first /= HANDSHAKES_CNT;
-	clientLoopStats.second /= HANDSHAKES_CNT;
-	fprintf(stderr, "Client Average Values : [%s]  %lu us\t [%s]  %f us\n", CLOCK, clientLoopStats.first, CPU_USE, clientLoopStats.second);
-	//testReportFile.close();
 #endif
 
-	if(client.isServerConnected()){
-		client.disconnectFromServer();
-	}
+	/*close the client Log file*/
+	if(clientOpFile.is_open())
+	clientOpFile.close();
+
 	return 0;
-	
 }

@@ -1,14 +1,17 @@
-/*SocketClient.h*/
+/********************************************************************
+ * Filename : SocketClient.h
+ * Author: Neetish Pathak (nepathak@paypal.com)
+ * Description: 1) contains class definition for SocketClient class.
+ *				2) macros related to client certificates and keys
+ ********************************************************************/
 
 #ifndef SOCKETCLIENT_H_
 #define SOCKETCLIENT_H_
 
 #include "common.h"
-
 #define CLIENT_THREADS_ON FALSE
 
 /*Keys, Certs and CA Codes*/
-/*openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 365 -out certificate.pem*/
 #define KEYS_DIR "./network/credentials/keys/"
 
 /*RSA Keys & certificates*/
@@ -41,74 +44,6 @@
 #define DSA_SERVER_CA KEYS_DIR "DSA/dsa_cert_key.pem"
 
 
-#if(CIPHERTYPE == 1 || CIPHERTYPE == 11)
-
-#define CLIENT_CERT_KEY ECDSA_CLIENT_CERT_KEY_PRIME256V1
-#define SERVER_CA	EC_PRIME256V1_SERVER_CA
-#define CIPHERSUITE ECDSA256_ECDHE256
-//#define EN_ECPARAMS 1
-//#define EN_DHPARAMS 1
-
-#elif(CIPHERTYPE == 2 || CIPHERTYPE == 21)
-
-#define CLIENT_CERT_KEY RSA_CLIENT_CERT_KEY_2048
-#define SERVER_CA	RSA2048_SERVER_CA
-#define CIPHERSUITE RSA2048_ECDHE256
-//#define EN_ECPARAMS 1
-//#define EN_DHPARAMS 1
-
-#elif(CIPHERTYPE == 3)
-
-#define CLIENT_CERT_KEY RSA_CLIENT_CERT_KEY_2048
-#define SERVER_CA	RSA2048_SERVER_CA
-#define CIPHERSUITE RSA2048_DHE2048
-//#define EN_ECPARAMS 0
-//#define EN_DHPARAMS 1
-
-#elif (CIPHERTYPE == 4)
-
-#define CLIENT_CERT_KEY RSA_CLIENT_CERT_KEY_2048
-#define SERVER_CA	RSA2048_SERVER_CA
-#define CIPHERSUITE RSA2048_DHE1024
-//#define EN_ECPARAMS 0
-//#define EN_DHPARAMS 1
-
-#elif(CIPHERTYPE == 5)
-
-#define CLIENT_CERT_KEY RSA_CLIENT_CERT_KEY_3072
-#define SERVER_CA	RSA3072_SERVER_CA
-#define CIPHERSUITE RSA3072
-//#define EN_ECPARAMS 0
-//#define EN_DHPARAMS 0
-
-
-#elif(CIPHERTYPE == 6)
-
-#define CLIENT_CERT_KEY RSA_CLIENT_CERT_KEY_2048
-#define SERVER_CA	RSA2048_SERVER_CA
-#define CIPHERSUITE RSA2048
-//#define EN_ECPARAMS 0
-//#define EN_DHPARAMS 0
-
-#elif(CIPHERTYPE == 7 || CIPHERTYPE == 71)
-
-#define CLIENT_CERT_KEY ECDSA_CLIENT_CERT_KEY_PRIME256V1
-#define SERVER_CA	EC_PRIME256V1_SERVER_CA
-#define CIPHERSUITE TLS1_3_AES128
-//#define EN_ECPARAMS 0
-//#define EN_DHPARAMS 0
-
-#elif(CIPHERTYPE == 8 || CIPHERTYPE == 81)
-
-#define CLIENT_CERT_KEY RSA_CLIENT_CERT_KEY_2048
-#define SERVER_CA	RSA2048_SERVER_CA
-#define CIPHERSUITE TLS1_3_AES128
-//#define EN_ECPARAMS 0
-//#define EN_DHPARAMS 0
-
-#endif
-
-
 class SocketClient{
 private:
 	std::string serverName;
@@ -120,12 +55,16 @@ private:
 	SSL_SESSION *sessionId;
 	int handshakes;
 	std::ofstream clientOpFile;
+	std::string clientCertKey;
+	std::string serverCA;
+	std::string cipherSuite;
+	void loadClientKeys(cipher_t cipherType);
 public:
 	typedef int (SocketClient::*cb_ptr)(SSL * , SSL_SESSION *);
 	cb_ptr new_sess;
-	SocketClient(std::string serverName, std::string portNumber);
+	SocketClient(std::string serverName, std::string portNumber, test_Case_Num, cipher_t);
 	virtual int connectToServer();
-	virtual std::pair<uint64_t, double> sslTcpConnect();
+	virtual int sslTcpConnect();
 	virtual int sslTcpClosure();
 	virtual int disconnectFromServer();
 	virtual int send(std::string message);

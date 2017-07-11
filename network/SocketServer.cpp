@@ -1,23 +1,29 @@
+/********************************************************************
+ * Filename : SocketServer.cpp
+ * Author: Neetish Pathak (nepathak@paypal.com)
+ * Description: 1) contains class implementation of SocketServer class
+ * 				2) Callback functions for session info update and use
+ ********************************************************************/
 /*SocketServer.cpp*/
 
 #include "SocketServer.h"
 #include "common.h"
 using namespace std;
 
-BIO * bio_err = BIO_new_fp(stderr,0x00 | (((1 | 0x8000) & 0x8000) == 0x8000 ? 0x10 : 0));
-
-typedef struct simple_ssl_session_st {
-    unsigned char *id;
-    unsigned int idlen;
-    unsigned char *der;
-    int derlen;
-    struct simple_ssl_session_st *next;
-} simple_ssl_session;
-
 static simple_ssl_session *first = NULL;
 static SSL_SESSION *psksess = NULL;
 static char *psk_identity = "Client_identity";
+BIO * bio_err = BIO_new_fp(stderr,0x00 | (((1 | 0x8000) & 0x8000) == 0x8000 ? 0x10 : 0));
 
+/************************************************************************************************/
+/*Following functions are for explicit (user enabled) caching on the server side*/
+/************************************************************************************************/
+/*****************************************************************************
+ * Function: app_malloc
+ * Parameters: int, const char *
+ * Return type: void*
+ * Description: reserve space of sz bytes from the heap to store session info
+ * **************************************************************************/
 void* app_malloc(int sz, const char *what)
 {
     void *vp = OPENSSL_malloc(sz);
@@ -30,6 +36,12 @@ void* app_malloc(int sz, const char *what)
     return vp;
 }
 
+/***************************************************************************************
+ * Function: add_session
+ * Parameters: SSL *ssl, SSL_SESSION *session
+ * Return type: int
+ * Description: add/store a session to the linked list of the simple_ssl_session structs
+ * *************************************************************************************/
 static int add_session(SSL *ssl, SSL_SESSION *session)
 {
     simple_ssl_session *sess = (simple_ssl_session*)OPENSSL_malloc(sizeof(simple_ssl_session));
@@ -69,6 +81,13 @@ static int add_session(SSL *ssl, SSL_SESSION *session)
     return 0;
 }
 
+/*****************************************************************************
+ * Function: get_session
+ * Parameters: SSL *ssl, const unsigned char *id, int idlen, int *do_copy
+ * Return type: SSL_SESSION
+ * Description: retrieve a session from the stored sessions in the
+ * 				linked list of simple_ssl_structs
+ * **************************************************************************/
 static SSL_SESSION *get_session(SSL *ssl, const unsigned char *id, int idlen,
                                 int *do_copy)
 {
@@ -85,6 +104,14 @@ static SSL_SESSION *get_session(SSL *ssl, const unsigned char *id, int idlen,
     return NULL;
 }
 
+/*****************************************************************************
+ * Function: del_session
+ * Parameters: SSL_CTX *sctx, SSL_SESSION *session
+ * Return type: void
+ * Description: delete the session  using the session id of the session
+ * 				passed in the arguments from the stored sessions in the
+ * 				linked list of simple_ssl_structs
+ * **************************************************************************/
 static void del_session(SSL_CTX *sctx, SSL_SESSION *session)
 {
     simple_ssl_session *sess, *prev = NULL;
@@ -106,6 +133,12 @@ static void del_session(SSL_CTX *sctx, SSL_SESSION *session)
     }
 }
 
+/*****************************************************************************
+ * Function: init_session_cache_ctx
+ * Parameters: explicit session caching initialization
+ * Return type: void
+ * Description: Initialize the session caching
+ * **************************************************************************/
 static void init_session_cache_ctx(SSL_CTX *sctx)
 {
     SSL_CTX_set_session_cache_mode(sctx,
@@ -116,6 +149,12 @@ static void init_session_cache_ctx(SSL_CTX *sctx)
     SSL_CTX_sess_set_remove_cb(sctx, del_session);
 }
 
+/*************************************************************************************
+ * Function: free_sessions
+ * Parameters: void
+ * Return type: void
+ * Description: free the space allocated for storing the sessions in the linked list
+ * *********************************************************************************/
 static void free_sessions(void)
 {
     simple_ssl_session *sess, *tsess;
@@ -128,10 +167,19 @@ static void free_sessions(void)
     }
     first = NULL;
 }
+/************************************************************************************************/
+/********************End of utility functions for explicit session caching***********************/
+/************************************************************************************************/
 
-#define TLS13_AES_128_GCM_SHA256_BYTES  ((const unsigned char *)"\x13\x01")
-#define TLS13_AES_256_GCM_SHA384_BYTES  ((const unsigned char *)"\x13\x02")
 
+/***********************************************************************
+ * Function: psk_find_session_cb
+ * Parameters: SSL *ssl, const unsigned char *identity,
+               size_t identity_len, SSL_SESSION **sess
+ * Return type: int
+ * Description: callback function for the session re-use using ext PSK
+ * 				with TLS 1.3 (referenced from s_server.c in openssl code)
+ * *********************************************************************/
 static int psk_find_session_cb(SSL *ssl, const unsigned char *identity,
                                size_t identity_len, SSL_SESSION **sess)
 {
@@ -139,13 +187,16 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity,
     unsigned char *key;
     long key_len;
     const SSL_CIPHER *cipher = NULL;
-    cout << "Session PSK entry on Server Side" << endl;
     if (strlen(psk_identity) != identity_len
             || memcmp(psk_identity, identity, identity_len) != 0)
         return 0;
 
     if (psksess != NULL) {
-    	cout << "Session is found on the server side" << endl;
+
+    	if(FALSE){
+    		cout << "SocketServer.cpp: Session re-use using external(session file) on the server side" << endl;
+    	}
+
         SSL_SESSION_up_ref(psksess);
         *sess = psksess;
         return 1;
@@ -179,11 +230,19 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity,
     }
     OPENSSL_free(key);
     *sess = tmpsess;
-    cout << "Session used on Server Side" << endl;
+    if(FALSE){
+    	cout << "SocketServer.cpp: Session re-use using external PSK code on the server side" << endl;
+    }
     return 1;
 }
-
-SocketServer::SocketServer(std::string portNumber){
+/***********************************************************************
+ * Function: SocketServer
+ * Parameters: std::string portNumber, test_Case_Num tcNo, cipher_t cipherType
+ * Return type: NA (constructor)
+ * Description: SocketServer constructor
+ * 				Initialize the server side attributes
+ * *********************************************************************/
+SocketServer::SocketServer(std::string portNumber, test_Case_Num tcNo, cipher_t cipherType){
 
 	this->portNumber = portNumber;
 	this->clientConnected = false;
@@ -191,11 +250,93 @@ SocketServer::SocketServer(std::string portNumber){
 	this->conn = NULL;
 	this->bio = NULL;
 	this->bioClient = NULL;
-#if HANDSHAKES_CNT_LOOP
-	this->serverOpFile.open(SERVER_FILENAME,std::ofstream::out);
-#endif
+
+	/*load Server config*/
+	initTLS(tcNo);
+	loadServerKeys(cipherType);
+	runTestCase("Server - Running test Case", testCaseNames[testCaseNo]);
 }
 
+/***********************************************************************
+ * Function: loadServerKeys
+ * Parameters: cipher_t cipherType
+ * Return type: void
+ * Description: load server side certificates, private keys and client CA
+ * 				dh paramters, ec paramters
+ * *********************************************************************/
+void SocketServer::loadServerKeys(cipher_t cipherType){
+
+	if(ECDHE_ECDSA256_X25519 == cipherType || ECDHE256_ECDSA256 == cipherType){
+
+			this->serverCertKey = ECDSA_SERVER_CERT_KEY_PRIME256V1;
+			this->clientCA = EC_PRIME256V1_CLIENT_CA;
+			this->dhParams = DHPARAMS_2048;
+			this->ecParams = ECPARAMS_PRIME256V1;
+			this->enableDhParams = ECDHE256_ECDSA256 == cipherType?true:false;
+			this->enableEcParams = ECDHE256_ECDSA256 == cipherType?true:false;
+
+		}else if(ECDHE_RSA2048_X25519 == cipherType || ECDHE256_RSA2048 == cipherType){
+			this->serverCertKey = RSA_SERVER_CERT_KEY_2048;
+			this->clientCA = RSA2048_CLIENT_CA;
+			this->dhParams = DHPARAMS_2048;
+			this->ecParams = ECPARAMS_PRIME256V1;
+			this->enableDhParams = ECDHE256_RSA2048 == cipherType?true:false;
+			this->enableEcParams = ECDHE256_RSA2048 == cipherType?true:false;
+
+		}else if(DHE2048_RSA2048 == cipherType || DHE1024_RSA2048 == cipherType){
+			this->serverCertKey = RSA_SERVER_CERT_KEY_2048;
+			this->clientCA = RSA2048_CLIENT_CA;
+			this->dhParams = DHE1024_RSA2048 == cipherType?DHPARAMS_1024:DHPARAMS_2048;
+			this->ecParams = ECPARAMS_PRIME256V1;
+			this->enableDhParams = true;
+			this->enableEcParams = false;
+
+		}else if(RSA_3072 == cipherType){
+
+			this->serverCertKey = RSA_SERVER_CERT_KEY_3072;
+			this->clientCA = RSA3072_CLIENT_CA;
+			this->dhParams = DHPARAMS_2048;
+			this->ecParams = ECPARAMS_PRIME256V1;
+			this->enableDhParams = false;
+			this->enableEcParams = false;
+
+		}else if(RSA_2048 == cipherType){
+
+			this->serverCertKey = RSA_SERVER_CERT_KEY_2048;
+			this->clientCA = RSA2048_CLIENT_CA;
+			this->dhParams = DHPARAMS_2048;
+			this->ecParams = ECPARAMS_PRIME256V1;
+			this->enableDhParams = false;
+			this->enableEcParams = false;
+
+		}else if(TLS1_3_ECDHE_ECDSA256_X25519 == cipherType || TLS1_3_ECDHE256_ECDSA256 == cipherType){
+
+			this->serverCertKey = ECDSA_SERVER_CERT_KEY_PRIME256V1;
+			this->clientCA = EC_PRIME256V1_CLIENT_CA;
+			this->dhParams = DHPARAMS_2048;
+			this->ecParams = ECPARAMS_PRIME256V1;
+			this->enableDhParams = TLS1_3_ECDHE256_ECDSA256 == cipherType?true:false;
+			this->enableEcParams = TLS1_3_ECDHE256_ECDSA256 == cipherType?true:false;
+
+		}else if(TLS1_3_ECDHE_RSA2048_X25519 == cipherType || TLS1_3_ECDHE256_RSA2048 == cipherType){
+
+			this->serverCertKey = RSA_SERVER_CERT_KEY_2048;
+			this->clientCA = RSA2048_CLIENT_CA;
+			this->dhParams = DHPARAMS_2048;
+			this->ecParams = ECPARAMS_PRIME256V1;
+			this->enableDhParams = TLS1_3_ECDHE256_RSA2048 == cipherType?true:false;
+			this->enableEcParams = TLS1_3_ECDHE256_RSA2048 == cipherType?true:false;
+
+		}
+	return;
+}
+
+/*****************************************************************
+ * Function: got_signal
+ * Parameters: int
+ * Return Type: void
+ * Description: signal handler (when server is interrupted/killed)
+ * ***************************************************************/
 std::atomic<bool> quit(false);    // signal flag
 
 void got_signal(int)
@@ -203,6 +344,14 @@ void got_signal(int)
 	quit.store(true);
 }
 
+/******************************************************************
+ * Function: listen
+ * Parameters: NA
+ * Return Type: int
+ * Description: initialize the connection(listening) socket on the
+ * 				designated port
+ * 				wait for client connections
+ * ***************************************************************/
 int SocketServer::listen(){
 
 	/*Signal Handling*/
@@ -223,11 +372,13 @@ int SocketServer::listen(){
 	const unsigned char normal_user = '1';
 	int admin_user = 2;
 
-	if(NO_SESSION_TICKETS)
+	/*Configuration for session tickets*/
+	if(noSessionTickets)
 	SSL_CTX_set_options(this->ssl_ctx, SSL_OP_NO_TICKET);
 
-	SSL_CTX_set_max_proto_version(ssl_ctx, MAX_TLS_VERSION);
-	SSL_CTX_set_min_proto_version(ssl_ctx, MIN_TLS_VERSION);
+	/*set minimum and maximum TLS versions*/
+	SSL_CTX_set_max_proto_version(ssl_ctx, maxTlsVersion);
+	SSL_CTX_set_min_proto_version(ssl_ctx, minTlsVersion);
 
 	if(NULL == ssl_ctx){
 		fail("SocketServer.cpp : ssl_ctx object creation failed"); perror("");
@@ -235,6 +386,7 @@ int SocketServer::listen(){
 		pass("SocketServer.cpp : ssl Context created successfully");
 	}
 
+	/*Server side session id contect setting*/
 	SSL_CTX_set_session_id_context(ssl_ctx, &normal_user, sizeof(normal_user));
 	//SSL_CTX_set_session_cache_mode(ssl_ctx, SSL_SESS_CACHE_BOTH);
 	//SSL_CTX_set_timeout(ssl_ctx, 600);
@@ -242,13 +394,13 @@ int SocketServer::listen(){
 
 
 	/* Load the client certificate into the SSL_CTX structure */
-	if (SSL_CTX_use_certificate_file(ssl_ctx, SERVER_CERT_KEY, SSL_FILETYPE_PEM) <= 0){
+	if (SSL_CTX_use_certificate_file(ssl_ctx, this->serverCertKey.c_str(), SSL_FILETYPE_PEM) <= 0){
 		ERR_print_errors_fp(stderr);
 		exit(1);
 	}
 
 	/* Load the private-key corresponding to the client certificate */
-	if (SSL_CTX_use_PrivateKey_file(ssl_ctx, SERVER_CERT_KEY, SSL_FILETYPE_PEM) <= 0) {
+	if (SSL_CTX_use_PrivateKey_file(ssl_ctx, this->serverCertKey.c_str(), SSL_FILETYPE_PEM) <= 0) {
 		ERR_print_errors_fp(stderr);
 		exit(1);
 	}
@@ -260,7 +412,7 @@ int SocketServer::listen(){
 	}
 
 	/*Load CA certificate in ssl-ctx structure*/
-	if(!SSL_CTX_load_verify_locations(ssl_ctx, CLIENT_CA, NULL)){
+	if(!SSL_CTX_load_verify_locations(ssl_ctx, this->clientCA.c_str(), NULL)){
 		ERR_print_errors_fp(stderr);
 		exit(1);
 	}
@@ -271,11 +423,11 @@ int SocketServer::listen(){
 	pass("SocketServer.cpp : Client certificate Authenticated");
 
 
-	if(EN_DHPARAMS){
+	if(this->enableDhParams){
 		//DH
 		DH *dh;
 		BIO *bio;
-		bio = BIO_new_file(DHPARAMS, "r");
+		bio = BIO_new_file(this->dhParams.c_str(), "r");
 		if(!bio){
 			fail("SocketServer.cpp : Unable to read the DH params from dhparams file");
 			ERR_error_string(ERR_get_error(), NULL);
@@ -292,12 +444,12 @@ int SocketServer::listen(){
 	}
 
 
-	if(EN_ECPARAMS){
+	if(this->enableEcParams){
 		/*ECDH*/
 		EC_KEY *ecdh = NULL;
 		EC_GROUP *ecg = NULL;
 		BIO *bio;
-		bio = BIO_new_file(ECPARAMS, "r");
+		bio = BIO_new_file(this->ecParams.c_str(), "r");
 
 
 		if(!bio){
@@ -346,20 +498,22 @@ int SocketServer::listen(){
 		int_error("SicketServer.cpp : Error binding the server Socket");
 
 	for(;;){
-/*#if HANDSHAKES_CNT_LOOP
-		int loopCnt = HANDSHAKES_CNT + 1;
-		bool firstConn = TRUE;
-		uint64_t fTime = 0, rTime = 0; double fCpu = 0, rCpu = 0;
-		while(loopCnt--){
-
-#endif
-*/
+		struct timespec st1, st2;
+		st2.tv_sec = 0;
+		st1.tv_sec = 0;
+		st2.tv_nsec = 0;
+		st1.tv_nsec = 0;
+		clock_gettime(CLOCK_MONOTONIC_RAW, &st1);
 		if(BIO_do_accept(bio) <= 0){
 			if(quit.load()){return 0;}
 			fail("SocketServer.cpp : Error on accepting TCP connection");
 			int_error("TCP connection failure");
 		}else{
 			pass("SocketServer.cpp : TCP connection successful");
+			clock_gettime(CLOCK_MONOTONIC_RAW, &st2);
+			uint64_t delta_us = (st2.tv_sec - st1.tv_sec) * 1000000 + (st2.tv_nsec - st1.tv_nsec) / 1000;
+			//time("SocketServer.cpp : TCP conn time : ", delta_us);
+
 		}
 		this->bioClient = BIO_pop(bio);
 
@@ -370,8 +524,8 @@ int SocketServer::listen(){
 		}
 
 		/*Load Pre Shared Session in case of TLS 1_3*/
-		if(PRE_SHARED_KEY_TLS1_3){
-		char *psksessf =  SESS_OUT;
+		if(pskTlsV1_3){
+		char *psksessf =  sess_file;
 		if (psksessf != NULL) {
 				BIO *stmp = BIO_new_file(psksessf, "r");
 
@@ -448,28 +602,8 @@ int SocketServer::listen(){
 		this->conn = NULL;
 		this->bioClient = NULL;
 
-
-
-#if HANDSHAKES_CNT_LOOP
 		//serverOpFile << delta_us << "," << delta_cpu_user_us  << "," << delta_cpu_sys_us << "," << delta_cpu_user_us + delta_cpu_sys_us << "\n";
 		serverOpFile << delta_us << "," << delta_cpu_us << "\n";
-#endif
-/*
-		if(firstConn){
-				fTime = delta_us;
-				fCpu = delta_cpu_user_us + delta_cpu_sys_us;
-				firstConn = FALSE;
-			}else{
-				rTime += delta_us;
-				rCpu += delta_cpu_user_us + delta_cpu_sys_us;
-			}
-		}
-
-		fprintf(stderr, "Server On 1st  Connection : [%s]  %llu us\t [%s]  %f us\n", CLOCK, fTime, CPU_USE, fCpu);
-		fprintf(stderr, "Server On Sess Resumption : [%s]  %llu us\t [%s]  %f us\n", CLOCK, rTime/HANDSHAKES_CNT, CPU_USE, rCpu/HANDSHAKES_CNT);
-
-#endif
-*/
 
 		/*Leave one line*/
 		cout << endl;
@@ -478,6 +612,12 @@ int SocketServer::listen(){
 	return 0;
 }
 
+/*****************************************************************************
+ * Function: send
+ * Parameters: string message
+ * Return type: int
+ * Description: send message to the connected client
+ * **************************************************************************/
 int SocketServer::send(std::string message){
 	const char* writeBuffer = message.data();
 	int length = message.length();
@@ -491,6 +631,12 @@ int SocketServer::send(std::string message){
 	return 0;
 }
 
+/*****************************************************************************
+ * Function: receive
+ * Parameters: int size
+ * Return type: string
+ * Description: receive the size number of bytes from the connected client
+ * **************************************************************************/
 string SocketServer::receive(int size=1024){
 	char readBuffer[size];
 	int n = SSL_read(this->conn, readBuffer, sizeof(readBuffer));
@@ -500,6 +646,12 @@ string SocketServer::receive(int size=1024){
 	return string(readBuffer);
 }
 
+/*****************************************************************************
+ * Function: ~SocketServer
+ * Parameters: NA
+ * Return type: NA
+ * Description: Destructor function for the SocketServer class
+ * **************************************************************************/
 SocketServer :: ~SocketServer(){
 
 	BIO_free(this->bio);
@@ -507,10 +659,7 @@ SocketServer :: ~SocketServer(){
 		int sd = SSL_get_fd(conn);
 		close(sd);
 	}
-#if HANDSHAKES_CNT_LOOP
-	if(this->serverOpFile.is_open())
-	this->serverOpFile.close();
-#endif
+
 	SSL_CTX_free(ssl_ctx);	
 	fprintf(stderr,"\n\033[1;35mServer Shutdown...\033[0m\n");
 }

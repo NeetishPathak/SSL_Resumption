@@ -1,18 +1,31 @@
-/*SocketClient.cpp*/
+/********************************************************************
+ * Filename : SocketClient.cpp
+ * Author: Neetish Pathak (nepathak@paypal.com)
+ * Description: 1) contains class implementation of SocketClient class.
+ *				2) Callback functions for session info update and use
+ ********************************************************************/
 
 #include "SocketClient.h"
-
 using namespace std;
+
+/*Session Related data*/
 SSL_SESSION *sessionDet = NULL;
 char *sess_out = NULL;
-bool resumeInput = FALSE;
+bool resumeInput = TRUE;
+static SSL_SESSION *psksess = NULL;
 BIO * bio_err = BIO_new_fp(stderr,0x00 | (((1 | 0x8000) & 0x8000) == 0x8000 ? 0x10 : 0));
 
-static SSL_SESSION *psksess = NULL;
 /* Default PSK identity and key */
 static char *psk_identity = "Client_identity";
 
-
+/***********************************************************************
+ * Function: psk_use_session_cb
+ * Parameters: SSL *s, const EVP_MD *md, const unsigned char **id,
+ * 			   size_t *idlen, SSL_SESSION **sess
+ * Return type: int
+ * Description: callback function for the session re-use using ext PSK
+ * 				with TLS 1.3 (referenced from s_client.c in openssl code)
+ * *********************************************************************/
 static int psk_use_session_cb(SSL *s, const EVP_MD *md,
                               const unsigned char **id, size_t *idlen,
                               SSL_SESSION **sess)
@@ -20,11 +33,11 @@ static int psk_use_session_cb(SSL *s, const EVP_MD *md,
     SSL_SESSION *usesess = NULL;
     const SSL_CIPHER *cipher = NULL;
 
-    if (psksess != NULL) {
+    if (psksess != NULL) { //check if the session is read from a file
     	cout << "Session found on client side File" << endl;
         SSL_SESSION_up_ref(psksess);
         usesess = psksess;
-    } else {
+    } else { //Session not found in a file, create a new session
 
         long key_len;
         unsigned char *key = OPENSSL_hexstr2buf(psk_key, &key_len);
@@ -69,7 +82,6 @@ static int psk_use_session_cb(SSL *s, const EVP_MD *md,
         *sess = NULL;
         SSL_SESSION_free(usesess);
     } else {
-    	cout << "Client side : session is read and set" << endl;
         *sess = usesess;
         *id = (unsigned char *)psk_identity;
         *idlen = strlen(psk_identity);
@@ -81,28 +93,45 @@ static int psk_use_session_cb(SSL *s, const EVP_MD *md,
     return 0;
 }
 
-
+/***********************************************************************
+ * Function: new_session_cb
+ * Parameters: SSL* ssl, SSL_SESSION * sess
+ * Return type: int
+ * Description: callback function for the new session callback
+ * 				save the session info in the session file
+ * 				(referenced from s_client.c in openssl code)
+ * *********************************************************************/
 static int new_session_cb(SSL* ssl, SSL_SESSION * sess){
 
 
-	BIO *stmp = BIO_new_file(SESS_OUT,"w");
+	BIO *stmp = BIO_new_file(sess_file,"w");
 
 	if(stmp == NULL){
-		BIO_printf(bio_err,"Error writing session file %s\n",SESS_OUT);
+		BIO_printf(bio_err,"Error writing session file %s\n",sess_file);
 	}else{
-		fprintf(stderr,"Session getting set\n");
 		PEM_write_bio_SSL_SESSION(stmp,sess);
-		SSL_SESSION_print_keylog(bio_err, sess);
-		BIO_printf(bio_err,"");
 		BIO_free(stmp);
 		resumeInput = TRUE;
+		if(FALSE){
+			fprintf(stderr,"SocketClient.cpp: Session is saved on client Side");
+			SSL_SESSION_print_keylog(bio_err, sess);
+			BIO_printf(bio_err,"");
+		}
 	}
 
 	return 0;
 
 }
 
-SocketClient::SocketClient(string serverName, string portNumber){
+/***********************************************************************
+ * Function: SocketClient
+ * Parameters: string serverName, string portNumber,
+ * 			   test_Case_Num tcNo, cipher_t cipherType
+ * Return type: NA (constructor)
+ * Description: SocketClient constructor
+ * 				Initialize the client side attributes
+ * *********************************************************************/
+SocketClient::SocketClient(string serverName, string portNumber, test_Case_Num tcNo, cipher_t cipherType){
 	this->serverName = serverName;
 	this->portNumber = portNumber;
 	this->isConnected = false;
@@ -111,11 +140,84 @@ SocketClient::SocketClient(string serverName, string portNumber){
 	this->bio = NULL;
 	this->sessionId = NULL;
 	this->handshakes = HANDSHAKES_CNT;
-#if HANDSHAKES_CNT_LOOP
-	this->clientOpFile.open(CLIENT_FILENAME,std::ofstream::out);
-#endif
+
+	/*Load Client config*/
+	initTLS(tcNo);
+	loadClientKeys(cipherType);
+
+	runTestCase("Client - Running test Case", testCaseNames[testCaseNo]);
+
 }
 
+/*****************************************************************************
+ * Function: loadClientKeys
+ * Parameters: cipher_t
+ * Return type: void
+ * Description: Load the client side certificates, private keys, server CAs
+ * 				and ciphersuites
+ * **************************************************************************/
+void SocketClient::loadClientKeys(cipher_t cipherType){
+
+	if(ECDHE_ECDSA256_X25519 == cipherType || ECDHE256_ECDSA256 == cipherType){
+
+		this->clientCertKey = ECDSA_CLIENT_CERT_KEY_PRIME256V1;
+		this->serverCA = EC_PRIME256V1_SERVER_CA;
+		this->cipherSuite = ECDSA256_ECDHE256;
+
+	}else if(ECDHE_RSA2048_X25519 == cipherType || ECDHE256_RSA2048 == cipherType){
+
+		this->clientCertKey = RSA_CLIENT_CERT_KEY_2048;
+		this->serverCA = RSA2048_SERVER_CA;
+		this->cipherSuite = RSA2048_ECDHE256;
+
+	}else if(DHE2048_RSA2048 == cipherType){
+
+		this->clientCertKey = RSA_CLIENT_CERT_KEY_2048;
+		this->serverCA = RSA2048_SERVER_CA;
+		this->cipherSuite = RSA2048_DHE2048;
+
+	}else if(DHE1024_RSA2048 == cipherType){
+
+		this->clientCertKey = RSA_CLIENT_CERT_KEY_2048;
+		this->serverCA = RSA2048_SERVER_CA;
+		this->cipherSuite = RSA2048_DHE1024;
+
+	}else if(RSA_3072 == cipherType){
+
+		this->clientCertKey = RSA_CLIENT_CERT_KEY_3072;
+		this->serverCA = RSA3072_SERVER_CA;
+		this->cipherSuite = RSA3072;
+
+	}else if(RSA_2048 == cipherType){
+
+		this->clientCertKey = RSA_CLIENT_CERT_KEY_2048;
+		this->serverCA = RSA2048_SERVER_CA;
+		this->cipherSuite = RSA2048;
+
+	}else if(TLS1_3_ECDHE_ECDSA256_X25519 == cipherType || TLS1_3_ECDHE256_ECDSA256 == cipherType){
+
+		this->clientCertKey = ECDSA_CLIENT_CERT_KEY_PRIME256V1;
+		this->serverCA = EC_PRIME256V1_SERVER_CA;
+		this->cipherSuite = TLS1_3_AES128;
+
+	}else if(TLS1_3_ECDHE_RSA2048_X25519 == cipherType || TLS1_3_ECDHE256_RSA2048 == cipherType){
+
+		this->clientCertKey = RSA_CLIENT_CERT_KEY_2048;
+		this->serverCA = RSA2048_SERVER_CA;
+		this->cipherSuite = TLS1_3_AES128;
+	}
+
+}
+
+/*****************************************************************************
+ * Function: connectToServer
+ * Parameters: NA
+ * Return type: int
+ * Description: Initialize/load the connection environment with server and call
+ * 				TCP/SSL connect function (sslTcpConnect())
+ * 				Return 0 when successfull
+ * 				exit otherwise
+ * **************************************************************************/
 int SocketClient::connectToServer(){
 
 	/*Initialization
@@ -125,10 +227,10 @@ int SocketClient::connectToServer(){
 
 	/*Creating a new SSL context object*/
 	ssl_ctx = SSL_CTX_new(TLS_client_method());
-	SSL_CTX_set_max_proto_version(ssl_ctx, MAX_TLS_VERSION);
-	SSL_CTX_set_min_proto_version(ssl_ctx, MIN_TLS_VERSION);
+	SSL_CTX_set_max_proto_version(ssl_ctx, maxTlsVersion);
+	SSL_CTX_set_min_proto_version(ssl_ctx, minTlsVersion);
 
-	if(NO_SESSION_TICKETS)
+	if(noSessionTickets)
 	SSL_CTX_set_options(this->ssl_ctx, SSL_OP_NO_TICKET);
 
 	if(NULL == ssl_ctx){
@@ -138,10 +240,10 @@ int SocketClient::connectToServer(){
 	}
 
 
-	if (SSL_CTX_set_cipher_list(ssl_ctx, CIPHERSUITE) != 1){
+	if (SSL_CTX_set_cipher_list(ssl_ctx, this->cipherSuite.c_str()) != 1){
 	   perror("SocketCLient.cpp : Unable to set cipher list");
 	}else{
-		cipherAll("Client loaded Cipher : ", CIPHERSUITE);
+		cipherAll("Client loaded Cipher : ", this->cipherSuite.c_str());
 	}
 
 	if(ssl_ctx){
@@ -152,36 +254,44 @@ int SocketClient::connectToServer(){
 
 
 	/* Load the client certificate into the SSL_CTX structure */
-	if (SSL_CTX_use_certificate_file(ssl_ctx, CLIENT_CERT_KEY, SSL_FILETYPE_PEM) <= 0){
+	if (SSL_CTX_use_certificate_file(ssl_ctx, this->clientCertKey.c_str(), SSL_FILETYPE_PEM) <= 0){
 		ERR_print_errors_fp(stderr);
 		exit(1);
 	}
 
 
 	/* Load the private-key corresponding to the client certificate */
-	if (SSL_CTX_use_PrivateKey_file(ssl_ctx, CLIENT_CERT_KEY, SSL_FILETYPE_PEM) <= 0) {
+	if (SSL_CTX_use_PrivateKey_file(ssl_ctx, this->clientCertKey.c_str(), SSL_FILETYPE_PEM) <= 0) {
 		ERR_print_errors_fp(stderr);
 		exit(1);
 	}
 
 
 	/*Load CA certificate in ssl-ctx structure*/
-	if(!SSL_CTX_load_verify_locations(ssl_ctx, SERVER_CA, NULL)){
+	if(!SSL_CTX_load_verify_locations(ssl_ctx, this->serverCA.c_str(), NULL)){
 		ERR_print_errors_fp(stderr);
 		exit(1);
 	}
 
 	SSL_CTX_set_verify(ssl_ctx,SSL_VERIFY_PEER,NULL);
 	SSL_CTX_set_verify_depth(ssl_ctx,1);
+
 	/*Server certificate is authenticated*/
-	pass("SocketClient.cpp : Server certificate Authenticated");
-
-
-
+	//pass("SocketClient.cpp : Server certificate Authenticated");
+	//Connect to the server
+	sslTcpConnect();
 	return 0;
 }
 
-std::pair<uint64_t, double> SocketClient::sslTcpConnect(){
+/*****************************************************************************
+ * Function: sslTcpConnect
+ * Parameters: NA
+ * Return type: int
+ * Description: perform TCP and SSL connect with the server
+ * 				return 0 when successful
+ * 				exit with error message otherwise
+ * **************************************************************************/
+int SocketClient::sslTcpConnect(){
 
 	/*Attaching the SSL connection to the Socket*/
 	if((this->conn = SSL_new(this->ssl_ctx)) == NULL){
@@ -190,19 +300,19 @@ std::pair<uint64_t, double> SocketClient::sslTcpConnect(){
 	}
 
 	/*Try to resume session*/
-#if SESS_RESUME
 
+	if(sessResume){
 		if(resumeInput){
 			SSL_SESSION *sess;
-			BIO *stmp = BIO_new_file(SESS_OUT, "r");
+			BIO *stmp = BIO_new_file(sess_file, "r");
 			if (!stmp) {
-				BIO_printf(bio_err, "Can't open session file %s\n", SESS_OUT);
+				BIO_printf(bio_err, "Can't open session file %s\n", sess_file);
 				ERR_print_errors(bio_err);
 			}
 			sess = PEM_read_bio_SSL_SESSION(stmp, NULL, 0, NULL);
 			BIO_free(stmp);
 			if (!sess) {
-				BIO_printf(bio_err, "Can't open session file %s\n", SESS_OUT);
+				BIO_printf(bio_err, "Can't open session file %s\n", sess_file);
 				ERR_print_errors(bio_err);
 			}
 			if (!SSL_set_session(this->conn, sess)) {
@@ -226,12 +336,13 @@ std::pair<uint64_t, double> SocketClient::sslTcpConnect(){
 			SSL_SESSION_free(this->sessionId);
 		}
 		*/
-#endif
+	}
+
 
 
 	/*Load Pre Shared Session in case of TLS 1_3*/
-	if(PRE_SHARED_KEY_TLS1_3){
-		char *psksessf = SESS_OUT;
+	if(pskTlsV1_3){
+		char *psksessf = sess_file;
 
 		if (psksessf != NULL) {
 			BIO *stmp = BIO_new_file(psksessf, "r");
@@ -262,11 +373,16 @@ std::pair<uint64_t, double> SocketClient::sslTcpConnect(){
 	bio = BIO_new_connect((this->serverName + ":" + this->portNumber).c_str());
 	if(!bio)
 		int_error("Error creating connection BIO");
-
+	struct timespec st1, st2;
+	clock_gettime(CLOCK_MONOTONIC_RAW, &st1);
 	if(BIO_do_connect(bio) <= 0){
 		fail("SocketClient.cpp : TCP connection failed");
 	}else{
 		pass("SocketClient.cpp : TCP connection successful");
+		clock_gettime(CLOCK_MONOTONIC_RAW, &st2);
+		uint64_t delta_us = (st2.tv_sec - st1.tv_sec) * 1000000 + (st2.tv_nsec - st1.tv_nsec) / 1000;
+		//time("SocketClient.cpp : TCP conn time : ", delta_us);
+
 	}
 
 	/*set the file descriptor socket-fd as the input/output facility for the TLS/SSL*/
@@ -316,20 +432,24 @@ std::pair<uint64_t, double> SocketClient::sslTcpConnect(){
 				SSL_SESSION_free(this->sessionId);
 		}
 	}*/
-	if(TLSv1_3)
+	if(tlsV1_3)
 		SSL_read(this->conn, NULL, 0);
 
-#if HANDSHAKES_CNT_LOOP
+	/*Log the latency and cpu utilization values in the clientLogFile*/
 	clientOpFile << delta_us << "," << delta_cpu_us << "\n";
-#endif
 
-	SSL_CTX_get_client_CA_list(this->ssl_ctx);
-	pair<uint64_t, double> stats;
-	stats.first = delta_us;
-	stats.second = (delta_cpu_us);
-	return stats;
+
+	//SSL_CTX_get_client_CA_list(this->ssl_ctx);
+	return 0;
 }
 
+/*****************************************************************************
+ * Function: send
+ * Parameters: string
+ * Return type: int
+ * Description: send message to the server
+ * 				return 0 on success, -1 on failure
+ * **************************************************************************/
 int SocketClient::send(std::string message){
 	const char* writeBuffer = message.data();
 	int length = message.length();
@@ -341,6 +461,13 @@ int SocketClient::send(std::string message){
 	return 0;
 }
 
+/*****************************************************************************
+ * Function: receive
+ * Parameters: size
+ * Return type: string
+ * Description: read the size number of bytes from the buffer
+ * 				when connected to the server
+ * **************************************************************************/
 string SocketClient::receive(int size=1024){
 	char readBuffer[size];
 	int n = SSL_read(this->conn, readBuffer, sizeof(readBuffer));
@@ -351,6 +478,13 @@ string SocketClient::receive(int size=1024){
 	return string(readBuffer);	
 }
 
+/*****************************************************************************
+ * Function: sslTcpClosure
+ * Parameters: NA
+ * Return type: int
+ * Description: close Tcp and SSL connection
+ * 				do not shut down the connection context object
+ * **************************************************************************/
 int SocketClient::sslTcpClosure(){
 	if (this->conn){
 		SSL_shutdown(this->conn);
@@ -364,6 +498,12 @@ int SocketClient::sslTcpClosure(){
 	return 0;
 }
 
+/*****************************************************************************
+ * Function: disconnectFromServer
+ * Parameters: NA
+ * Return type: int
+ * Description: disconnect from the server, shut down the SSL context
+ * **************************************************************************/
 int SocketClient::disconnectFromServer(){
 	this->isConnected = false;
 	/*free the SSL connections*/
@@ -371,11 +511,14 @@ int SocketClient::disconnectFromServer(){
 	return 0;
 }
 
+/*****************************************************************************
+ * Function: ~SocketClient
+ * Parameters: NA
+ * Return type: NA
+ * Description: Destructor function for the SocketClient class
+ * **************************************************************************/
 SocketClient::~SocketClient(){
-#if HANDSHAKES_CNT_LOOP
-	if(this->clientOpFile.is_open())
-	this->clientOpFile.close();
-#endif
+
 	if(this->isConnected == true){
 		disconnectFromServer();
 	}
