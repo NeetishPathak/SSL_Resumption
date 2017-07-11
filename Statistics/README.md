@@ -27,8 +27,11 @@ $Test cases
   3. TLS1_3 No Resumption
   4. TLS1_3 Resumption using Shared key
   5. TLS1_3 Resumption External PSK
-  6. TLS 1.2 No Resumption Far-off Machines 
-  7. TLS 1.3 No Resumption Far-off Machines 
+  6. TLS1_3 Resumption External PSK Session File
+  7. TLS 1.2 No Resumption Far-off Machines 
+  8. TLS 1.3 No Resumption Far-off Machines
+  9. TLS 1.2 Resumption Far-off Machines 
+  10. TLS 1.3 Resumption Far-off Machines 
   
   Enter your choice here for testCase Number: 0
   
