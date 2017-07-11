@@ -1,15 +1,18 @@
 
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
+'''
+plot.py file takes an excel file with four sheets
+viz. Latency_C, CPU_C, Latency_S, CPU_S
+and find the performance statistics
+'''
 import xlrd
 import numpy as np
 import matplotlib.pyplot as plt
 import csv as csv
 import pandas as pd
 from pandas import DataFrame 
-from numpy import array
-
-	
+from numpy import array	
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
@@ -54,32 +57,15 @@ f.append(f2)
 f.append(f3)
 f.append(f4)
 
-
+#Op[en the excel file for statistics calculation
 def open_file(path):
 	"""
 	Open and read an Excel file
 	"""
 	book = xlrd.open_workbook(path)
  
-    	# print number of sheets
-	#print book.nsheets
- 
-	# print sheet names
-	#print book.sheet_names()
- 
 	# get the first worksheet
 	first_sheet = book.sheet_by_index(0)
- 
-	# read a row
-	#print first_sheet.row_values(0)
- 
-	# read a cell
-	#cell = first_sheet.cell(0,0)
-	#print cell
-	#print cell.value
- 
-	# read a row slice
-	#print first_sheet.row_slice(rowx=0,start_colx=0,end_colx=2)
 	
 	#no. of sheets in the excel
 	n = book.nsheets
@@ -94,22 +80,12 @@ def open_file(path):
 		for j in xrange(0,len(m)):
 			val =  cur_sheet.col_values(j,stIndex)	
 			X1 = array(val)
-			#print X1
 			mean_X1 = np.mean(X1)
 			var_X1 = np.std(X1)
 			median_X1 = np.median(X1)
 			percentile = np.percentile(X1, 90)
 			counts = np.bincount(np.int32(X1))
-			
-			#print np.argmax(counts)
-			#print counts
-			#print np.max(X1)
-			#print np.min(X1)
-			#print mean_X1
-			#print var_X1
-			#print  median_X1
-			#print percentile
-			#showHistogram(X1, "X1")
+	
 			f[i].write(str(m[j]));f[i].write(',')
 			f[i].write(str(mean_X1));f[i].write(',')
 			f[i].write(str(var_X1)); f[i].write(',')
@@ -122,6 +98,7 @@ def open_file(path):
 			
 
 
+#Latency or CPU plot
 def plotType(plotNum,str):
 	if plotNum == 0:
 			title(str + "\n" + "Handshake Latency")
@@ -150,14 +127,11 @@ def plots(testCase):
 	
 	d1 = list(file_object_cl)
 	d2 = list(file_object_sl)
-	#print d1 + d2
 	length = len(d1)
 	
 	data1 = []
 	for x in xrange(1,length):
-		#print x
 		d = d1[x] + d2[x]
-		#print d
 		data1.append(d)
 	
 	
@@ -169,59 +143,18 @@ def plots(testCase):
 	
 	d1 = list(file_object_cc)
 	d2 = list(file_object_sc)
-	#print d1 + d2
 	length = len(d1)
 	
 	data2 = []
 	for x in xrange(1,length):
-		#print x
 		d = d1[x] + d2[x]
-		#print d
 		data2.append(d)
 	
 	data.append(data1)
 	data.append(data2)
 	
-	#print data
-	'''
-	handshakes = 100
-	data = [
-	# Set 0
-	[
-	("RSA 1024",     2.092,   0.274, 1.900, 0.313),
-	("RSA 2048",     3.193,   0.276, 2.982, 0.316),
-	("RSA 4096",     9.556,  0.372, 9.386, 0.421),
-	("ECDSA",     13.2,  0.368, 13.033, 0.413)
-	],
-	# Set 1
-	[
-	("RSA 1024",     2.170,   0.346, 2.00, 0.384),
-	("RSA 2048",     3.203,   0.335, 3.057, 0.382),
-	("RSA 4096",     7.819,  0.341, 7.663, 0.379),
-	("ECDSA",     12.945,  0.270, 12.712, 0.305)
-	],
-	# Set 2
-	[
-	("RSA 1024",     0.843,   0.163, 0.978, 0.173),
-	("RSA 2048",     0.952,   0.163, 1.956, 0.170),
-	("RSA 4096",     1.095,  0.191, 8.165, 0.198),
-	("ECDSA",     6.767,  0.191, 6.161, 0.199)
-	],
-	# Set 3
-	[
-	("RSA 1024",     0.864,   0.167, 1.022, 0.183),
-	("RSA 2048",     0.893,   0.185, 2.007, 0.204),
-	("RSA 4096",     1.057,  0.163, 6.472, 0.184),
-	("ECDSA",     6.436,  0.154, 6.154, 0.175)
-	], 
-	]
-	'''
+	
 	data = data[int(plotNum)]
-	#clientvsserver = [True, False]
-	#clientvsserver = clientvsserver[int(sys.argv[1])]
-	
-	
-	
 	
 	# Fonts
 	rcParams['font.family'] = "sans-serif"
@@ -279,8 +212,6 @@ def plots(testCase):
 	yticks(pos + 0.4, [x[0].replace(" ","\n",1) for x in data])
 	
 	
-		
-	
 	if testCase == 0:
 		plotType(plotNum,"TLS1_2_No_Resumption");
 	elif testCase == 1:
@@ -313,7 +244,7 @@ def plots(testCase):
 	show()
 
 
-
+#Main function
 #----------------------------------------------------------------------
 if __name__ == "__main__":
 	paths = ["TLS1_2_NoResumption.xlsx","TLS1_2_Session_Ids.xlsx","TLS1_2_Session_Tickets.xlsx","TLS1_3_NoResumption.xlsx","TLS1_3_PSK.xlsx","TLS1_3_Ext_PSK.xlsx","TLS1_3_Ext_PSK_SessFile.xlsx","Spl_1.xlsx","Spl_2.xlsx","Spl_3.xlsx","Spl_4.xlsx"]
