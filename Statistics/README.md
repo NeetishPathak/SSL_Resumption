@@ -4,14 +4,17 @@ Statistics Directory contains generated client Server Logs and TestCases Directo
 ## TestCases Directory <br />
 TestCases Directory contains excel worksheets with Latency and CPU usage statistics for the following test cases performed <br />
 
-0) TLS1.2 No rsesumption
+0) TLS1.2 No resumption
 1) TLS 1.2 Resumption with Session Identifers
 2) TLS 1.2 Resumption with Session Tickets
 3) TLS 1.3 No Resumption
 4) TLS 1.3 Resumption with Shared PSK
 5) TLS 1.3 with External PSK
-6) TLS 1.2 No resumption on machines with ping time 120 ms
-7) TLS 1.3 No resumptions on machines with ping time 120 ms
+6) TLS1_3 Resumption External PSK Session File
+7) TLS 1.2 No Resumption Far-off Machines (ping time 120 ms)
+8) TLS 1.3 No Resumption Far-off Machines (ping time 120 ms)
+9) TLS 1.2 Resumption Far-off Machines  (ping time 120 ms)
+10) TLS 1.3 Resumption Far-off Machines (ping time 120 ms)
 
 The plots for Latency and CPU utilization can be generated using the python script plot.py in Statitics/TestCases. <br />
 
