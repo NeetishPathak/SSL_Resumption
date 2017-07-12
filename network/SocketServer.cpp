@@ -272,7 +272,7 @@ void SocketServer::loadServerKeys(cipher_t cipherType){
 			this->clientCA = EC_PRIME256V1_CLIENT_CA;
 			this->dhParams = DHPARAMS_2048;
 			this->ecParams = ECPARAMS_PRIME256V1;
-			this->enableDhParams = ECDHE256_ECDSA256 == cipherType?true:false;
+			this->enableDhParams = false;
 			this->enableEcParams = ECDHE256_ECDSA256 == cipherType?true:false;
 
 		}else if(ECDHE_RSA2048_X25519 == cipherType || ECDHE256_RSA2048 == cipherType){
@@ -280,7 +280,7 @@ void SocketServer::loadServerKeys(cipher_t cipherType){
 			this->clientCA = RSA2048_CLIENT_CA;
 			this->dhParams = DHPARAMS_2048;
 			this->ecParams = ECPARAMS_PRIME256V1;
-			this->enableDhParams = ECDHE256_RSA2048 == cipherType?true:false;
+			this->enableDhParams = false;
 			this->enableEcParams = ECDHE256_RSA2048 == cipherType?true:false;
 
 		}else if(DHE2048_RSA2048 == cipherType || DHE1024_RSA2048 == cipherType){
@@ -315,7 +315,7 @@ void SocketServer::loadServerKeys(cipher_t cipherType){
 			this->clientCA = EC_PRIME256V1_CLIENT_CA;
 			this->dhParams = DHPARAMS_2048;
 			this->ecParams = ECPARAMS_PRIME256V1;
-			this->enableDhParams = TLS1_3_ECDHE256_ECDSA256 == cipherType?true:false;
+			this->enableDhParams = false;
 			this->enableEcParams = TLS1_3_ECDHE256_ECDSA256 == cipherType?true:false;
 
 		}else if(TLS1_3_ECDHE_RSA2048_X25519 == cipherType || TLS1_3_ECDHE256_RSA2048 == cipherType){
@@ -324,7 +324,7 @@ void SocketServer::loadServerKeys(cipher_t cipherType){
 			this->clientCA = RSA2048_CLIENT_CA;
 			this->dhParams = DHPARAMS_2048;
 			this->ecParams = ECPARAMS_PRIME256V1;
-			this->enableDhParams = TLS1_3_ECDHE256_RSA2048 == cipherType?true:false;
+			this->enableDhParams = false;
 			this->enableEcParams = TLS1_3_ECDHE256_RSA2048 == cipherType?true:false;
 
 		}
