@@ -72,7 +72,7 @@
 #define GET_TIME(x) clock_gettime(CLOCK_MONOTONIC_RAW, &x)
 #define GET_CPU(x) clock_gettime(CLOCK_THREAD_CPUTIME_ID, &x)
 //To get both system and user level CPU utilization
-#define GET_CPU2(x) getrusage(RUSAGE_SELF, &x)
+#define GET_CPU2(x) getrusage(RUSAGE_CHILDREN, &x)
 
 /*Connection Macros*/
 #define PORT "12345"
