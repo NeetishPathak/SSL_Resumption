@@ -391,6 +391,8 @@ int SocketClient::sslTcpConnect(){
 
 	/*Start the clock - time-stamp for initial time and CPU*/
 		GET_TIME(stTime); GET_CPU2(startCpuTime); //GET_CPU(stCpu);
+		printf("start time in user mode = %ld.%06ld ", startCpuTime.ru_utime.tv_sec, startCpuTime.ru_utime.tv_usec);
+		printf("start time in sys mode = %ld.%06ld ", startCpuTime.ru_stime.tv_sec, startCpuTime.ru_stime.tv_usec);
 
 	if(READ_WRITE_TEST && EARLY_DATA && SSL_get0_session(conn) != NULL && SSL_SESSION_get_max_early_data(SSL_get0_session(conn)) > 0){
 		std::string earlyData = " <HTML><BODY>dummy20early</BODY></HTML> ";
@@ -418,6 +420,8 @@ int SocketClient::sslTcpConnect(){
 
 	/*Time-stamps ---- 2*/
 	GET_TIME(eConnectTime); GET_CPU2(endCpuTime); //GET_CPU(eConnectCpu);
+	printf("end time in user mode = %ld.%06ld ", endCpuTime.ru_utime.tv_sec, endCpuTime.ru_utime.tv_usec);
+	printf("end time in user mode = %ld.%06ld ", endCpuTime.ru_stime.tv_sec, endCpuTime.ru_stime.tv_usec);
 
 	if(tlsV1_3) /*This is important for session caching on client side in TLS 1.3*/
 		SSL_read(this->conn, NULL, 0);

@@ -550,6 +550,9 @@ int SocketServer::listen(){
 
 		/*Start the clock - time-stamp for initial time and CPU*/
 		GET_TIME(stTime); GET_CPU2(startCpuTime); //GET_CPU(stCpu);
+		printf("Start time in user mode = %ld.%06ld ", startCpuTime.ru_utime.tv_sec, startCpuTime.ru_utime.tv_usec);
+		printf("Start time in system mode = %ld.%06ld ", startCpuTime.ru_stime.tv_sec, startCpuTime.ru_stime.tv_usec);
+
 
 		if(EARLY_DATA){
 			/*Try and receive early data if any (Applicable for TLS 1.3 - should fail for TLS version <= TLS1.2)*/
@@ -571,6 +574,8 @@ int SocketServer::listen(){
 
 		/*Time-stamps ---- 2*/
 		GET_TIME(eAcceptTime); GET_CPU2(endCpuTime); //GET_CPU(eAcceptCpu);
+		printf("end time in user mode = %ld.%06ld ", endCpuTime.ru_utime.tv_sec, endCpuTime.ru_utime.tv_usec);
+		printf("end time in system mode = %ld.%06ld ", endCpuTime.ru_stime.tv_sec, endCpuTime.ru_stime.tv_usec);
 
 		if(READ_WRITE_TEST){
 			/*Try and Read any data from the client*/
