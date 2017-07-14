@@ -497,6 +497,7 @@ int SocketServer::listen(){
 	if(BIO_do_accept(bio) <= 0)
 		int_error("SicketServer.cpp : Error binding the server Socket");
 
+	int loop = HANDSHAKES_CNT;
 	for(;;){
 		if(BIO_do_accept(bio) <= 0){
 			if(quit.load()){return 0;}
@@ -549,7 +550,7 @@ int SocketServer::listen(){
 		struct rusage startCpuTime; struct rusage endCpuTime;
 
 		/*Start the clock - time-stamp for initial time and CPU*/
-		GET_TIME(stTime); GET_CPU2(startCpuTime); //GET_CPU(stCpu);
+		GET_TIME(stTime); GET_CPU2(startCpuTime); GET_CPU(stCpu);
 		printf("Start time in user mode = %ld.%06ld ", startCpuTime.ru_utime.tv_sec, startCpuTime.ru_utime.tv_usec);
 		printf("Start time in system mode = %ld.%06ld ", startCpuTime.ru_stime.tv_sec, startCpuTime.ru_stime.tv_usec);
 
@@ -573,7 +574,7 @@ int SocketServer::listen(){
 		}
 
 		/*Time-stamps ---- 2*/
-		GET_TIME(eAcceptTime); GET_CPU2(endCpuTime); //GET_CPU(eAcceptCpu);
+		GET_TIME(eAcceptTime); GET_CPU2(endCpuTime); GET_CPU(eAcceptCpu);
 		printf("end time in user mode = %ld.%06ld ", endCpuTime.ru_utime.tv_sec, endCpuTime.ru_utime.tv_usec);
 		printf("end time in system mode = %ld.%06ld ", endCpuTime.ru_stime.tv_sec, endCpuTime.ru_stime.tv_usec);
 
@@ -595,9 +596,9 @@ int SocketServer::listen(){
 		/*Latency for accept connection*/
 		uint64_t delta_accept_us = timeDiff("SocketServer.cpp : Handshake Latency -", stTime, eAcceptTime);
 		/*Measure CPU usage time till accept - Generally user CPU time is more than system CPU time*/
-		//uint64_t delta_accept_cpu_us = cpuDiff("SocketServer.cpp : Handshake CPU Utilization -", stCpu, eAcceptCpu);
+		uint64_t delta_accept_cpu_us = cpuDiff("SocketServer.cpp : Handshake CPU Utilization -", stCpu, eAcceptCpu);
 		uint64_t delta_connect_cpu_user_us = 0; uint64_t delta_connect_cpu_sys_us = 0;
-		uint64_t delta_connect_cpu_us = cpuDiffSysUser("SocketServer.cpp : Handshake CPU Utilization -", startCpuTime, endCpuTime, \
+		uint64_t delta_connect_cpu_us_2 = cpuDiffSysUser("SocketServer.cpp : Handshake CPU Utilization -", startCpuTime, endCpuTime, \
 															delta_connect_cpu_user_us, delta_connect_cpu_sys_us);
 
 
@@ -621,10 +622,14 @@ int SocketServer::listen(){
 
 		/*Write to the output file*/
 		if(serverOpFile.is_open()){
-			serverOpFile << delta_accept_us << "," << delta_connect_cpu_user_us << "," << delta_connect_cpu_sys_us << "\n";
+			serverOpFile << delta_accept_us << "," << delta_accept_cpu_us <<"," << delta_connect_cpu_user_us << "," << delta_connect_cpu_sys_us << "\n";
 		}
 		/*Leave one line*/
 		cout << endl;
+
+		// loop count is maintained just for the purpose of testing
+		loop--;
+		if(loop <= 0)break;
 
 	}
 
