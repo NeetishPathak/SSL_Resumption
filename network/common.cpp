@@ -95,6 +95,7 @@ void initTLS(test_Case_Num tc){
 			noSessionTickets = true;
 			tlsV1_3 = true;
 			pskTlsV1_3 = true;
+			sess_file = SESS_OUT;
 			maxTlsVersion = TLS1_3_VERSION;
 			break;
 
@@ -160,6 +161,8 @@ void init_OpenSSL(){
 	SSL_load_error_strings();
 }
 
+
+
 /*Fancy print functions*/
 /**********************************************************************
  *Function: warn, pass, fail, time, cpu, cipher, cipherAll, runTestCase
@@ -205,6 +208,28 @@ void cipherAll(const char * cpuStr, const char* cipher){
 void runTestCase(const char * cpuStr, const char* cipher){
 	if(DEBUG)
 	fprintf(stderr, "[%s] %s %s \n", RUNTEST, cpuStr, cipher);
+}
+
+uint64_t timeDiff(const char * timeStr, struct timespec startTime, struct timespec endTime){
+	uint64_t delta_us = (endTime.tv_sec - startTime.tv_sec) * 1000000 + (endTime.tv_nsec - startTime.tv_nsec) / 1000;
+	time(timeStr, delta_us);
+	return delta_us;
+}
+
+uint64_t cpuDiff(const char * cpuStr, struct timespec startTime, struct timespec endTime){
+	uint64_t delta_cpu_us = (endTime.tv_sec - startTime.tv_sec) * 1000000 + (endTime.tv_nsec - startTime.tv_nsec) / 1000;
+	cpu(cpuStr, delta_cpu_us);
+	return delta_cpu_us;
+}
+
+uint64_t cpuDiffSysUser(const char * cpuStr, struct rusage startCpuTime, struct rusage endCpuTime, uint64_t &cU, uint64_t &cS){
+	uint64_t delta_cpu_user_us = (endCpuTime.ru_utime.tv_sec - startCpuTime.ru_utime.tv_sec) * 1000000 + (endCpuTime.ru_utime.tv_usec - startCpuTime.ru_utime.tv_usec);
+	cpu((tostring(cpuStr) + "(User CPU time)").c_str(), delta_cpu_user_us);
+	cU = delta_cpu_user_us;
+	uint64_t delta_cpu_sys_us = (endCpuTime.ru_stime.tv_sec - startCpuTime.ru_stime.tv_sec) * 1000000 + (endCpuTime.ru_stime.tv_usec - startCpuTime.ru_stime.tv_usec);
+	cpu((tostring(cpuStr) + "(System CPU time)").c_str(), delta_cpu_sys_us);
+	cS = delta_cpu_sys_us;
+	return delta_cpu_user_us + delta_cpu_sys_us;
 }
 
 /**************************************************************

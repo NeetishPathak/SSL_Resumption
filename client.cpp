@@ -55,7 +55,8 @@ int main(int argc, char **argv){
 
 	/*close the client Log file*/
 	if(clientOpFile.is_open())
-	clientOpFile.close();
+		clientOpFile.close();
+
 
 	return 0;
 }

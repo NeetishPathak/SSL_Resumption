@@ -5,6 +5,9 @@
  *				2) macros related to client certificates and keys
  ********************************************************************/
 
+
+
+
 #ifndef SOCKETCLIENT_H_
 #define SOCKETCLIENT_H_
 
@@ -54,7 +57,6 @@ private:
 	BIO* bio;
 	SSL_SESSION *sessionId;
 	int handshakes;
-	std::ofstream clientOpFile;
 	std::string clientCertKey;
 	std::string serverCA;
 	std::string cipherSuite;
@@ -68,6 +70,7 @@ public:
 	virtual int sslTcpClosure();
 	virtual int disconnectFromServer();
 	virtual int send(std::string message);
+	virtual int sendEarlyData(std::string message);
 	virtual std::string receive(int size);
 	//virtual int sessGetCb();
 	bool isServerConnected(){return this->isConnected;}

@@ -422,7 +422,7 @@ int SocketServer::listen(){
 	/*Server certificate is authenticated*/
 	pass("SocketServer.cpp : Client certificate Authenticated");
 
-
+	/*load Dh parameters - important when DHE type ciphers is used*/
 	if(this->enableDhParams){
 		//DH
 		DH *dh;
@@ -443,7 +443,7 @@ int SocketServer::listen(){
 		}
 	}
 
-
+	/*load EC parameters - important when ECDHE type cipher is used*/
 	if(this->enableEcParams){
 		/*ECDH*/
 		EC_KEY *ecdh = NULL;
@@ -486,7 +486,7 @@ int SocketServer::listen(){
 
 	}
 
-	struct timespec start, end;
+	struct timespec start, end, endWrite;
 	/*Establish a TCP connection*/
 	/*listening socket*/
 	bio = BIO_new_accept((this->portNumber).c_str());
@@ -498,22 +498,12 @@ int SocketServer::listen(){
 		int_error("SicketServer.cpp : Error binding the server Socket");
 
 	for(;;){
-		struct timespec st1, st2;
-		st2.tv_sec = 0;
-		st1.tv_sec = 0;
-		st2.tv_nsec = 0;
-		st1.tv_nsec = 0;
-		clock_gettime(CLOCK_MONOTONIC_RAW, &st1);
 		if(BIO_do_accept(bio) <= 0){
 			if(quit.load()){return 0;}
 			fail("SocketServer.cpp : Error on accepting TCP connection");
 			int_error("TCP connection failure");
 		}else{
 			pass("SocketServer.cpp : TCP connection successful");
-			clock_gettime(CLOCK_MONOTONIC_RAW, &st2);
-			uint64_t delta_us = (st2.tv_sec - st1.tv_sec) * 1000000 + (st2.tv_nsec - st1.tv_nsec) / 1000;
-			//time("SocketServer.cpp : TCP conn time : ", delta_us);
-
 		}
 		this->bioClient = BIO_pop(bio);
 
@@ -523,10 +513,13 @@ int SocketServer::listen(){
 			fail("SocketServer.cpp : create new SSL structure failed");
 		}
 
+		SSL_set_bio(conn, this->bioClient, this->bioClient);
+		
+
 		/*Load Pre Shared Session in case of TLS 1_3*/
 		if(pskTlsV1_3){
-		char *psksessf =  sess_file;
-		if (psksessf != NULL) {
+			char *psksessf =  sess_file;
+			if (psksessf != NULL) {
 				BIO *stmp = BIO_new_file(psksessf, "r");
 
 				if (stmp == NULL) {
@@ -548,23 +541,25 @@ int SocketServer::listen(){
 				SSL_set_psk_find_session_callback(this->conn, psk_find_session_cb);
 		}
 
+		/*For Time/CPU measurements, start a clock at the beginning just after the TCP connect and then
+				 * find out the latency and utilization time-stamps post early data read, SSL_accept and SSL_read*/
 
-		SSL_set_bio(conn, this->bioClient, this->bioClient);
-		
-		/*SocketServer.cpp : Time Measurement for SSL connection*/
-		//struct rusage stCpu;
-		//struct rusage eCpu;
+		struct timespec stTime, eEarlyDataTime, eAcceptTime, eReadTime;
+		struct timespec stCpu, eEarlyDataCpu, eAcceptCpu, eReadCpu;
+		struct rusage startCpuTime; struct rusage endCpuTime;
 
-		struct timespec stCpu, eCpu;
+		/*Start the clock - time-stamp for initial time and CPU*/
+		GET_TIME(stTime); GET_CPU2(startCpuTime); //GET_CPU(stCpu);
 
-		/*if(getrusage(RUSAGE_SELF, &stCpu) == -1){
-			perror("SocketServer.cpp : StartCPU Usage not fetched");
-		}*/
-		clock_gettime(CLOCK_THREAD_CPUTIME_ID, &stCpu);
-		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+		if(EARLY_DATA){
+			/*Try and receive early data if any (Applicable for TLS 1.3 - should fail for TLS version <= TLS1.2)*/
+			receiveEarlyData(1024);
 
-		//uint64_t tempTimeSt = start.tv_nsec / 1000;
-		//time("SocketServer.cpp : Handshake Start time : ", tempTimeSt);
+			/*Time-stamps ---- 1*/
+			GET_TIME(eEarlyDataTime); GET_CPU(eEarlyDataCpu);
+		}
+
+		/*SSL accept call to establish the connection Main step to establish SSL connection*/
 		if(SSL_accept(this->conn) != 1){
 			fail("SocketServer.cpp : SSL accept Fail"); perror("");
 			ERR_print_errors_fp(stderr);
@@ -573,24 +568,41 @@ int SocketServer::listen(){
 		}else{
 			pass("SocketServer.cpp : SSL accept is successful");
 		}
-		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-		clock_gettime(CLOCK_THREAD_CPUTIME_ID, &eCpu);
-		/*if(getrusage(RUSAGE_SELF, &eCpu) == -1){
-			perror("SocketServer.cpp : EndCPU Usage not fetched");
-		}*/
-		//uint64_t tempTimeEnd = end.tv_nsec / 1000;
-		//time("SocketServer.cpp : Handshake End time : ", tempTimeEnd);
 
-		uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
-		time("SocketServer.cpp : Handshake time : ", delta_us);
-		/*uint64_t delta_cpu_user_us = (eCpu.ru_utime.tv_sec - stCpu.ru_utime.tv_sec) * 1000000 + (eCpu.ru_utime.tv_usec - stCpu.ru_utime.tv_usec);
-		cpu("SocketServer.cpp : User CPU time : ", delta_cpu_user_us);
-		uint64_t delta_cpu_sys_us = (eCpu.ru_stime.tv_sec - stCpu.ru_stime.tv_sec) * 1000000 + (eCpu.ru_stime.tv_usec - stCpu.ru_stime.tv_usec);
-		cpu("SocketServer.cpp : System CPU time : ", delta_cpu_sys_us);
-		*/
-		/*Generally user CPU time is more than system CPU time*/
-		uint64_t delta_cpu_us = (eCpu.tv_sec - stCpu.tv_sec) * 1000000 + (eCpu.tv_nsec - stCpu.tv_nsec) / 1000;
-		cpu("SocketServer.cpp : CPU time : ", delta_cpu_us);
+		/*Time-stamps ---- 2*/
+		GET_TIME(eAcceptTime); GET_CPU2(endCpuTime); //GET_CPU(eAcceptCpu);
+
+		if(READ_WRITE_TEST){
+			/*Try and Read any data from the client*/
+			cout << "Receive data from the client : " << receive(1024) << endl;
+
+			/*Time-stamps ---- 3*/
+			GET_TIME(eReadTime); GET_CPU(eReadCpu);
+		}
+
+		if(READ_WRITE_TEST && EARLY_DATA){
+			/*Latency for Early Data read operation*/
+			uint64_t delta_eData_us = timeDiff("SocketServer.cpp : Early Data Read Latency -", stTime, eEarlyDataTime);
+			/*Measure CPU usage for Early Data read operation*/
+			uint64_t delta_eData_cpu_us = cpuDiff("SocketServer.cpp : Early Data Read CPU Utilization -", stCpu, eEarlyDataCpu);
+		}
+
+		/*Latency for accept connection*/
+		uint64_t delta_accept_us = timeDiff("SocketServer.cpp : Handshake Latency -", stTime, eAcceptTime);
+		/*Measure CPU usage time till accept - Generally user CPU time is more than system CPU time*/
+		//uint64_t delta_accept_cpu_us = cpuDiff("SocketServer.cpp : Handshake CPU Utilization -", stCpu, eAcceptCpu);
+		uint64_t delta_connect_cpu_user_us = 0; uint64_t delta_connect_cpu_sys_us = 0;
+		uint64_t delta_connect_cpu_us = cpuDiffSysUser("SocketServer.cpp : Handshake CPU Utilization -", startCpuTime, endCpuTime, \
+															delta_connect_cpu_user_us, delta_connect_cpu_sys_us);
+
+
+		if(READ_WRITE_TEST){
+			/*Latency for read operation on server*/
+			uint64_t delta_read_us = timeDiff("SocketServer.cpp : Read Latency -", stTime, eReadTime);
+			/*Measure CPU usage time till read operation*/
+			uint64_t delta_read_cpu_us = cpuDiff("SocketServer.cpp : Read CPU utilization -", stCpu, eReadCpu);
+		}
+
 
 
 		/*The selected Cipher-suite by the server is */
@@ -602,11 +614,13 @@ int SocketServer::listen(){
 		this->conn = NULL;
 		this->bioClient = NULL;
 
-		//serverOpFile << delta_us << "," << delta_cpu_user_us  << "," << delta_cpu_sys_us << "," << delta_cpu_user_us + delta_cpu_sys_us << "\n";
-		serverOpFile << delta_us << "," << delta_cpu_us << "\n";
-
+		/*Write to the output file*/
+		if(serverOpFile.is_open()){
+			serverOpFile << delta_accept_us << "," << delta_connect_cpu_user_us << "," << delta_connect_cpu_sys_us << "\n";
+		}
 		/*Leave one line*/
 		cout << endl;
+
 	}
 
 	return 0;
@@ -624,11 +638,11 @@ int SocketServer::send(std::string message){
 	int n = SSL_write(this->conn, writeBuffer, length);
 	if(n < 0){
 		perror("SocketServer.cpp : Error on writing to client");
-		return 1;
+		return -1;
 	}else{
 		cout << "Written successfully by the server" << endl;
 	}
-	return 0;
+	return n;
 }
 
 /*****************************************************************************
@@ -642,6 +656,52 @@ string SocketServer::receive(int size=1024){
 	int n = SSL_read(this->conn, readBuffer, sizeof(readBuffer));
 	if(n < 0){
 		perror("SocketServer.cpp : error on reading on the server");
+	}
+	return string(readBuffer);
+}
+
+/*****************************************************************************
+ * Function: receiveEarlyData
+ * Parameters: int size
+ * Return type: string
+ * Description: receive Early Data from the client side
+ * **************************************************************************/
+string SocketServer::receiveEarlyData(int size=1024){
+	char readBuffer[size];
+	size_t readBytes = 0;
+	int n;
+	while(n != SSL_READ_EARLY_DATA_FINISH){
+		n =  SSL_read_early_data(this->conn, readBuffer, sizeof(readBuffer), &readBytes);
+		switch(n){
+			case SSL_READ_EARLY_DATA_ERROR:
+				perror("IO or some error occurred while reading early data");
+						switch (SSL_get_error(this->conn, 0)) {
+							case SSL_ERROR_WANT_WRITE:
+							case SSL_ERROR_WANT_ASYNC:
+							case SSL_ERROR_WANT_READ:
+								/* Just keep trying - busy waiting */
+								continue;
+							default:
+								BIO_printf(bio_err, "Error reading early data\n");
+								ERR_print_errors(bio_err);
+								return string(readBuffer);
+								break;
+					   }
+				break;
+			case SSL_READ_EARLY_DATA_SUCCESS:
+				pass("Early Data was successfully Read at the server side");
+				break;
+			case SSL_READ_EARLY_DATA_FINISH:
+				pass("Early Data Read finish");
+				break;
+			default:
+				break;
+		}
+		if (readBytes > 0) {
+			cout << "Early Received data from client" << string(readBuffer) << endl;
+		}else{
+
+		}
 	}
 	return string(readBuffer);
 }

@@ -77,6 +77,7 @@ public:
 	virtual int listen();
 	virtual int send(std::string message);
 	virtual std::string receive(int size);
+	virtual std::string receiveEarlyData(int size);
 	virtual ~SocketServer();
 };
 
