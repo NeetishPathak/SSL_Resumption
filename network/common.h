@@ -92,7 +92,7 @@
 #define WRITE_DATA "Message \0"
 
 /*TestCase Run Count*/
-#define HANDSHAKES_CNT 2000
+#define HANDSHAKES_CNT 1000
 #define HANDSHAKES_CNT_LOOP TRUE
 
 /*Log files*/
