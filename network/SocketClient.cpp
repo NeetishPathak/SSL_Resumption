@@ -17,6 +17,7 @@ BIO * bio_err = BIO_new_fp(stderr,0x00 | (((1 | 0x8000) & 0x8000) == 0x8000 ? 0x
 
 /* Default PSK identity and key */
 static char *psk_identity = "Client_identity";
+bool writeData = false; bool earlyDataBool = false; bool normalData = false;
 
 /***********************************************************************
  * Function: psk_use_session_cb
@@ -278,6 +279,7 @@ int SocketClient::connectToServer(){
 	SSL_CTX_set_verify_depth(ssl_ctx,1);
 
 	/*Call TCP and SSL connect*/
+	writeData = false; earlyDataBool = false; normalData = false;
 	sslTcpConnect();
 	return 0;
 }
@@ -395,16 +397,23 @@ int SocketClient::sslTcpConnect(){
 		//printf("start time in sys mode = %ld.%06ld ", startCpuTime.ru_stime.tv_sec, startCpuTime.ru_stime.tv_usec);
 
 	if(READ_WRITE_TEST && EARLY_DATA && SSL_get0_session(conn) != NULL && SSL_SESSION_get_max_early_data(SSL_get0_session(conn)) > 0){
-		std::string earlyData = " <HTML><BODY>dummy20early</BODY></HTML> ";
-		sendEarlyData(earlyData);
+		if(writeData == false){
+			std::string earlyData = string(WRITE_DATA);
 
-		/*check if a full-handshake for fully protected application data is completed*/
-		if(SSL_is_init_finished(this->conn)){
-			pass("SocketClient.cpp : fully protected application data can be transferred");
+			if(0 == sendEarlyData(earlyData)){
+				/*check if a full-handshake for fully protected application data is completed*/
+				if(SSL_is_init_finished(this->conn)){
+					pass("SocketClient.cpp : fully protected application data can be transferred");
+				}
+
+				/*Time-stamps ---- 1*/
+				cout << "Getting time-stamp for early data " << endl;
+				GET_TIME(eEarlyDataTime); GET_CPU(eEarlyDataCpu);
+				writeData = true; earlyDataBool = true;
+				if(earlyDataBool)
+				cout << "value of earlydata is " << earlyData << endl;
+			}
 		}
-
-		/*Time-stamps ---- 1*/
-		GET_TIME(eEarlyDataTime); GET_CPU(eEarlyDataCpu);
 	}
 
 	/*Perform the SSL handshake*/
@@ -428,26 +437,26 @@ int SocketClient::sslTcpConnect(){
 
 	//SSL_CTX_get_client_CA_list(this->ssl_ctx);
 
-
-
 	if(READ_WRITE_TEST){
-		/*check if a full-handshake for fully protected application data is completed*/
-		if(SSL_is_init_finished(this->conn)){
-			pass("SocketClient.cpp : fully protected application data can be transferred");
+		if(false == writeData){
+			/*check if a full-handshake for fully protected application data is completed*/
+			if(SSL_is_init_finished(this->conn)){
+				pass("SocketClient.cpp : fully protected application data can be transferred");
+				/*write something to the server*/
+				std::string data = std::string(WRITE_DATA);
+				if(send(data) >= 0){
+					cout << "Client write success" << endl;
+					writeData = true; normalData = true;
+					/*Time-stamps ---- 3*/
+					GET_TIME(eWriteTime); GET_CPU(eWriteCpu);
+				}
+			}
 		}
-		/*write something to the server*/
-		std::string data = " <HTML><BODY>Real40Data</BODY></HTML> ";
-		if(send(data) >= 0){
-			cout << "Client write success" << endl;
-		}
-
-		/*Time-stamps ---- 3*/
-		GET_TIME(eWriteTime); GET_CPU(eWriteCpu);
 	}
 
 
 	/*-------------------------------------------- Printing the time taken for handshake -------------------------------------*/
-	if(READ_WRITE_TEST && EARLY_DATA){
+	if(READ_WRITE_TEST && EARLY_DATA && earlyDataBool){
 		/*Latency for Early Data read operation*/
 		uint64_t delta_eData_us = timeDiff("SocketClient.cpp : Early Data Write Latency -", stTime, eEarlyDataTime);
 		/*Measure CPU usage for Early Data read operation*/
@@ -462,7 +471,7 @@ int SocketClient::sslTcpConnect(){
 	uint64_t delta_connect_cpu_us_2 = cpuDiffSysUser("SocketClient.cpp : Handshake CPU Utilization -", startCpuTime, endCpuTime, \
 													delta_connect_cpu_user_us, delta_connect_cpu_sys_us);
 
-	if(READ_WRITE_TEST){
+	if(READ_WRITE_TEST && normalData){
 		/*Latency for read operation on server*/
 		uint64_t delta_write_us = timeDiff("SocketClient.cpp : Data Write Latency -", stTime, eWriteTime);
 		/*Measure CPU usage time till read operation*/
@@ -527,6 +536,7 @@ int SocketClient::sendEarlyData(std::string message){
 
 	if(written != length){
 		cout << "SocketClient.cpp : early send data failed" << endl;
+		return -1;
 	}else{
 		cout << "SocketClient.cpp : early send data success" << endl;
 	}

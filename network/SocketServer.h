@@ -76,8 +76,8 @@ public:
 	SocketServer(std::string portNumber, test_Case_Num tc, cipher_t c);
 	virtual int listen();
 	virtual int send(std::string message);
-	virtual std::string receive(int size);
-	virtual std::string receiveEarlyData(int size);
+	virtual int receive(int size, std::string &str);
+	virtual int receiveEarlyData(int size, std::string &str);
 	virtual ~SocketServer();
 };
 
