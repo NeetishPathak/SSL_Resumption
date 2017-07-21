@@ -86,7 +86,7 @@
 #define PSK_BDATA "0533c95c9ecc310ee07cb70a316c45448487c1f70bbea99fe6616f3348305677"
 
 /*Early Data*/
-#define EARLY_DATA TRUE
+#define EARLY_DATA FALSE
 #define READ_WRITE_TEST TRUE
 //#define WRITE_DATA "GET / HTTP/1.1\r\nHost: \r\nConnection: close\r\n\r\n"
 #define WRITE_DATA "Message \0"
