@@ -557,10 +557,12 @@ int SocketServer::listen(){
 		if(EARLY_DATA && !readData){
 			/*Try and receive early data if any (Applicable for TLS 1.3 - should fail for TLS version <= TLS1.2)*/
 			std::string readBuf;
-			if(0 == receiveEarlyData(1024, readBuf)){
+			if(0 == receiveEarlyData(BUFFSIZE, readBuf)){
 				pass("Early Data read Success");
+				if(0 == sendEarlyData(WRITE_DATA)){
+					pass("Early Data send Success");
+				}
 				readData = true; earlyData = true;
-				cout << "Early Received Data is " << readBuf << endl;
 				/*Time-stamps ---- 1*/
 				GET_TIME(eEarlyDataTime); GET_CPU(eEarlyDataCpu);
 			}else{
@@ -584,7 +586,7 @@ int SocketServer::listen(){
 		if(READ_WRITE_TEST && !readData){
 			/*Try and Read any data from the client*/
 			std::string readBuf;
-			if(0 == receive(1024, readBuf)){
+			if(0 == receive(BUFFSIZE, readBuf)){
 				pass("Data Read success");
 				normalData = true; readData = true;
 				cout << "Received Data is " << readBuf << endl;
@@ -663,6 +665,59 @@ int SocketServer::send(std::string message){
 }
 
 /*****************************************************************************
+ * Function: sendEarlyData
+ * Parameters: string
+ * Return type: int
+ * Description: send early data to the server
+ * 				return 0 on success, -1 on failure
+ * **************************************************************************/
+int SocketServer::sendEarlyData(std::string message){
+	char writeBuffer[BUFFSIZE];
+	memset(writeBuffer, 0x00, BUFFSIZE);
+	int length = message.length();
+	if(EARLY_DATA){
+		BIO *edfile = BIO_new_file(DATA_FILE_SERVER, "r");
+		size_t readBytes, written;
+		int finish = 0;
+
+		if (edfile == NULL) {
+			BIO_printf(bio_err, "Cannot open early data file\n");
+			return -1;
+		}
+
+		while (!finish) {
+
+			if (!BIO_read_ex(edfile, writeBuffer, BUFFSIZE, &readBytes))
+				finish = 1;
+
+			while(!SSL_write_early_data(this->conn, writeBuffer, readBytes, &written)){
+					switch (SSL_get_error(this->conn, 0)) {
+						case SSL_ERROR_WANT_WRITE:
+						case SSL_ERROR_WANT_ASYNC:
+						case SSL_ERROR_WANT_READ:
+							/* Just keep trying - busy waiting */
+							continue;
+						default:
+							BIO_printf(bio_err, "Error writing early data\n");
+							return -1;
+							break;
+					}
+			}
+		}
+		BIO_free(edfile);
+		if(written != readBytes && written > 0){
+			cout << "SocketServer.cpp : early send data failed" << endl;
+			return -1;
+		}else{
+			cout << "SocketServer.cpp : early send data success" << endl;
+			cout << "Written data is " << writeBuffer << endl;
+		}
+	}
+
+	return 0;
+}
+
+/*****************************************************************************
  * Function: receive
  * Parameters: int size
  * Return type: string
@@ -686,9 +741,9 @@ int SocketServer::receive(int size, std::string &readBuf){
  * Description: receive Early Data from the client side
  * **************************************************************************/
 int SocketServer::receiveEarlyData(int size, std::string &readBuf){
-	char readBuffer[1024];
+	char readBuffer[BUFFSIZE];
 	size_t readBytes = 0;size_t totalBytes = 0;
-	int n;
+	int  n = 0;
 	while(n != SSL_READ_EARLY_DATA_FINISH){
 		n =  SSL_read_early_data(this->conn, readBuffer, sizeof(readBuffer), &readBytes);
 		switch(n){
@@ -710,10 +765,10 @@ int SocketServer::receiveEarlyData(int size, std::string &readBuf){
 				break;
 			case SSL_READ_EARLY_DATA_FINISH:
 				totalBytes += readBytes;
-				if (totalBytes > 0) {
+				if (SSL_EARLY_DATA_ACCEPTED == SSL_get_early_data_status(this->conn) && totalBytes > 0) {
 					readBuf = string(readBuffer);
+					cout << readBuf << endl;
 					return 0;
-				}else{
 				}
 				break;
 			default:

@@ -113,7 +113,7 @@ static int new_session_cb(SSL* ssl, SSL_SESSION * sess){
 		PEM_write_bio_SSL_SESSION(stmp,sess);
 		BIO_free(stmp);
 		resumeInput = TRUE;
-		if(FALSE){
+		if(TRUE){
 			fprintf(stderr,"SocketClient.cpp: Session is saved on client Side");
 			SSL_SESSION_print_keylog(bio_err, sess);
 			BIO_printf(bio_err,"");
@@ -335,6 +335,8 @@ int SocketClient::sslTcpConnect(){
 				BIO_printf(bio_err, "Can't set session\n");
 				ERR_print_errors(bio_err);
 			}
+			SSL_SESSION_print_keylog(bio_err, sess);
+			BIO_printf(bio_err,"");
 			SSL_SESSION_free(sess);
 			/*if(FALSE == TLSv1_3){
 				if(this->sessionId != NULL){
@@ -352,8 +354,6 @@ int SocketClient::sslTcpConnect(){
 		}
 		*/
 	}
-
-
 
 	/*Load Pre Shared Session in case of TLS 1_3*/
 	if(pskTlsV1_3){
@@ -392,9 +392,7 @@ int SocketClient::sslTcpConnect(){
 		struct rusage startCpuTime; struct rusage endCpuTime;
 
 	/*Start the clock - time-stamp for initial time and CPU*/
-		GET_TIME(stTime); GET_CPU2(startCpuTime); GET_CPU(stCpu);
-		//printf("start time in user mode = %ld.%06ld ", startCpuTime.ru_utime.tv_sec, startCpuTime.ru_utime.tv_usec);
-		//printf("start time in sys mode = %ld.%06ld ", startCpuTime.ru_stime.tv_sec, startCpuTime.ru_stime.tv_usec);
+	GET_TIME(stTime); GET_CPU2(startCpuTime); GET_CPU(stCpu);
 
 	if(READ_WRITE_TEST && EARLY_DATA && SSL_get0_session(conn) != NULL && SSL_SESSION_get_max_early_data(SSL_get0_session(conn)) > 0){
 		if(writeData == false){
@@ -407,14 +405,12 @@ int SocketClient::sslTcpConnect(){
 				}
 
 				/*Time-stamps ---- 1*/
-				cout << "Getting time-stamp for early data " << endl;
 				GET_TIME(eEarlyDataTime); GET_CPU(eEarlyDataCpu);
 				writeData = true; earlyDataBool = true;
-				if(earlyDataBool)
-				cout << "value of earlydata is " << earlyData << endl;
 			}
 		}
 	}
+
 
 	/*Perform the SSL handshake*/
 	if(SSL_connect(conn) != 1){
@@ -429,8 +425,6 @@ int SocketClient::sslTcpConnect(){
 
 	/*Time-stamps ---- 2*/
 	GET_TIME(eConnectTime); GET_CPU2(endCpuTime); GET_CPU(eConnectCpu);
-	//printf("end time in user mode = %ld.%06ld ", endCpuTime.ru_utime.tv_sec, endCpuTime.ru_utime.tv_usec);
-	//printf("end time in user mode = %ld.%06ld ", endCpuTime.ru_stime.tv_sec, endCpuTime.ru_stime.tv_usec);
 
 	if(tlsV1_3) /*This is important for session caching on client side in TLS 1.3*/
 		SSL_read(this->conn, NULL, 0);
@@ -439,6 +433,7 @@ int SocketClient::sslTcpConnect(){
 
 	if(READ_WRITE_TEST){
 		if(false == writeData){
+			cout << "Send data " << endl;
 			/*check if a full-handshake for fully protected application data is completed*/
 			if(SSL_is_init_finished(this->conn)){
 				pass("SocketClient.cpp : fully protected application data can be transferred");
@@ -498,13 +493,31 @@ int SocketClient::sslTcpConnect(){
  * 				return 0 on success, -1 on failure
  * **************************************************************************/
 int SocketClient::send(std::string message){
-	const char* writeBuffer = message.data();
-	int length = message.length();
-	int n = SSL_write(this->conn, writeBuffer, length);
-	if(n < 0){
-		perror("SocketClient.cpp : Error writing message from the client");
-		return -1;
+	char writeBuffer[BUFFSIZE];
+
+	BIO *edfile = BIO_new_file(DATA_FILE_CLIENT, "r");
+	size_t readBytes = 0; int finish = 0;
+
+	if (edfile == NULL) {
+			BIO_printf(bio_err, "Cannot open early data file\n");
+			return -1;
 	}
+
+	while(!finish){
+
+		if(!BIO_read_ex(edfile, writeBuffer, BUFFSIZE, &readBytes)){
+			finish = 1;
+			break;
+		}
+
+		if(SSL_write(this->conn, writeBuffer, readBytes) <= 0){
+			perror("SocketClient.cpp : Error writing message from the client");
+			return -1;
+		}
+	}
+
+	BIO_free(edfile);
+	cout << "WRITE SUCCESS" << endl;
 	return 0;
 }
 
@@ -516,29 +529,44 @@ int SocketClient::send(std::string message){
  * 				return 0 on success, -1 on failure
  * **************************************************************************/
 int SocketClient::sendEarlyData(std::string message){
-	const char* writeBuffer = message.data();
+	char writeBuffer[BUFFSIZE];
 	int length = message.length();
-	size_t written;
+	if(EARLY_DATA){
+		BIO *edfile = BIO_new_file(DATA_FILE_CLIENT, "r");
+		size_t readBytes, written;
+		int finish = 0;
 
-	while(!SSL_write_early_data(this->conn, writeBuffer, length, &written)){
-			switch (SSL_get_error(this->conn, 0)) {
-				case SSL_ERROR_WANT_WRITE:
-				case SSL_ERROR_WANT_ASYNC:
-				case SSL_ERROR_WANT_READ:
-					/* Just keep trying - busy waiting */
-					continue;
-				default:
-				    BIO_printf(bio_err, "Error writing early data\n");
-				    return -1;
-				    break;
+		if (edfile == NULL) {
+			BIO_printf(bio_err, "Cannot open early data file\n");
+			return -1;
+		}
+
+		while (!finish) {
+
+			if (!BIO_read_ex(edfile, writeBuffer, BUFFSIZE, &readBytes))
+				finish = 1;
+
+			while(!SSL_write_early_data(this->conn, writeBuffer, readBytes, &written)){
+					switch (SSL_get_error(this->conn, 0)) {
+						case SSL_ERROR_WANT_WRITE:
+						case SSL_ERROR_WANT_ASYNC:
+						case SSL_ERROR_WANT_READ:
+							/* Just keep trying - busy waiting */
+							continue;
+						default:
+							BIO_printf(bio_err, "Error writing early data\n");
+							return -1;
+							break;
+					}
 			}
-	}
-
-	if(written != length){
-		cout << "SocketClient.cpp : early send data failed" << endl;
-		return -1;
-	}else{
-		cout << "SocketClient.cpp : early send data success" << endl;
+		}
+		BIO_free(edfile);
+		if(written != readBytes){
+			cout << "SocketClient.cpp : early send data failed" << endl;
+			return -1;
+		}else{
+			cout << "SocketClient.cpp : early send data success" << endl;
+		}
 	}
 
 	return 0;
@@ -551,7 +579,7 @@ int SocketClient::sendEarlyData(std::string message){
  * Description: read the size number of bytes from the buffer
  * 				when connected to the server
  * **************************************************************************/
-string SocketClient::receive(int size=1024){
+string SocketClient::receive(int size){
 	char readBuffer[size];
 
 	int n = SSL_read(this->conn, readBuffer, sizeof(readBuffer));

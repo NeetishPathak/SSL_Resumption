@@ -90,6 +90,9 @@
 #define READ_WRITE_TEST TRUE
 //#define WRITE_DATA "GET / HTTP/1.1\r\nHost: \r\nConnection: close\r\n\r\n"
 #define WRITE_DATA "Message \0"
+#define DATA_FILE_CLIENT "./network/credentials/sessionFiles/data_file_client.txt"
+#define DATA_FILE_SERVER "./network/credentials/sessionFiles/data_file_server.txt"
+#define BUFFSIZE 16*1024
 
 /*TestCase Run Count*/
 #define HANDSHAKES_CNT 1000
