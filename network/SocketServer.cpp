@@ -559,9 +559,6 @@ int SocketServer::listen(){
 			std::string readBuf;
 			if(0 == receiveEarlyData(BUFFSIZE, readBuf)){
 				pass("Early Data read Success");
-				if(0 == sendEarlyData(WRITE_DATA)){
-					pass("Early Data send Success");
-				}
 				readData = true; earlyData = true;
 				/*Time-stamps ---- 1*/
 				GET_TIME(eEarlyDataTime); GET_CPU(eEarlyDataCpu);
@@ -589,7 +586,7 @@ int SocketServer::listen(){
 			if(0 == receive(BUFFSIZE, readBuf)){
 				pass("Data Read success");
 				normalData = true; readData = true;
-				cout << "Received Data is " << readBuf << endl;
+				//cout << "Received Data is " << readBuf << endl;
 				/*Time-stamps ---- 3*/
 				GET_TIME(eReadTime); GET_CPU(eReadCpu);
 			}else{
@@ -767,7 +764,7 @@ int SocketServer::receiveEarlyData(int size, std::string &readBuf){
 				totalBytes += readBytes;
 				if (SSL_EARLY_DATA_ACCEPTED == SSL_get_early_data_status(this->conn) && totalBytes > 0) {
 					readBuf = string(readBuffer);
-					cout << readBuf << endl;
+					//cout << readBuf << endl;
 					return 0;
 				}
 				break;
