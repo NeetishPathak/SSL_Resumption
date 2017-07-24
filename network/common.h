@@ -32,6 +32,10 @@
 #include <openssl/crypto.h>
 
 #include <openssl/ocsp.h>
+#include <netinet/tcp.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
 
 /*To string Macro*/
 #define STR_HELPER(x) #x
@@ -86,7 +90,8 @@
 #define PSK_BDATA "0533c95c9ecc310ee07cb70a316c45448487c1f70bbea99fe6616f3348305677"
 
 /*Early Data*/
-#define EARLY_DATA FALSE
+#define DISABLE_NAGLE FALSE
+#define EARLY_DATA TRUE
 #define READ_WRITE_TEST TRUE
 //#define WRITE_DATA "GET / HTTP/1.1\r\nHost: \r\nConnection: close\r\n\r\n"
 #define WRITE_DATA "Message \0"
@@ -95,7 +100,7 @@
 #define BUFFSIZE 16*1024
 
 /*TestCase Run Count*/
-#define HANDSHAKES_CNT 1000
+#define HANDSHAKES_CNT 3
 #define HANDSHAKES_CNT_LOOP TRUE
 
 /*Log files*/

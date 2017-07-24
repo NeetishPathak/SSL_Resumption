@@ -14,7 +14,7 @@ static simple_ssl_session *first = NULL;
 static SSL_SESSION *psksess = NULL;
 static char *psk_identity = "Client_identity";
 BIO * bio_err = BIO_new_fp(stderr,0x00 | (((1 | 0x8000) & 0x8000) == 0x8000 ? 0x10 : 0));
-bool readData = false; bool earlyData = false; bool normalData = false;
+bool readData = false; bool earlyData = false; bool normalData = false; bool writeData = false;
 /************************************************************************************************/
 /*Following functions are for explicit (user enabled) caching on the server side*/
 /************************************************************************************************/
@@ -499,7 +499,38 @@ int SocketServer::listen(){
 
 	//int loop = HANDSHAKES_CNT;
 	for(;;){
-		readData = false; earlyData = false; normalData = false;
+
+		/*For Time/CPU measurements, start a clock at the beginning just after the TCP connect and then
+				 * find out the latency and utilization time-stamps post early data read, SSL_accept and SSL_read*/
+
+		struct timespec stTime, eEarlyDataTime, eAcceptTime, eReadTime, eWriteTime;
+		struct timespec stCpu, eEarlyDataCpu, eAcceptCpu, eReadCpu, eWriteCpu;
+		struct rusage startCpuTime; struct rusage endCpuTime;
+
+		/*Start the clock - time-stamp for initial time and CPU*/
+		GET_TIME(stTime); GET_CPU2(startCpuTime); GET_CPU(stCpu);
+
+		readData = false; earlyData = false; normalData = false; writeData = false;
+
+		/*Disabling Nagle's algorithm*/
+		if(DISABLE_NAGLE){
+			int sock;
+			BIO_get_fd(bio, &sock);
+			int flag = 1;
+			int result = setsockopt(sock,            /* socket affected */
+					IPPROTO_TCP,     /* set option at TCP level */
+					TCP_NODELAY,     /* name of option */
+					(char *) &flag,  /* the cast is historical
+				                                                         cruft */
+					sizeof(int));    /* length of option value */
+			if (result < 0){
+				perror("Nagle's algorithm disable failed");
+			}else{
+				cout << "Nagle's algorithm is disabled" << endl;
+			}
+		}
+
+
 		if(BIO_do_accept(bio) <= 0){
 			if(quit.load()){return 0;}
 			fail("SocketServer.cpp : Error on accepting TCP connection");
@@ -517,7 +548,6 @@ int SocketServer::listen(){
 
 		SSL_set_bio(conn, this->bioClient, this->bioClient);
 		
-
 		/*Load Pre Shared Session in case of TLS 1_3*/
 		if(pskTlsV1_3){
 			char *psksessf =  sess_file;
@@ -543,27 +573,27 @@ int SocketServer::listen(){
 				SSL_set_psk_find_session_callback(this->conn, psk_find_session_cb);
 		}
 
-		/*For Time/CPU measurements, start a clock at the beginning just after the TCP connect and then
-				 * find out the latency and utilization time-stamps post early data read, SSL_accept and SSL_read*/
-
-		struct timespec stTime, eEarlyDataTime, eAcceptTime, eReadTime;
-		struct timespec stCpu, eEarlyDataCpu, eAcceptCpu, eReadCpu;
-		struct rusage startCpuTime; struct rusage endCpuTime;
-
-		/*Start the clock - time-stamp for initial time and CPU*/
-		GET_TIME(stTime); GET_CPU2(startCpuTime); GET_CPU(stCpu);
-
-
+		/*Try and read early data coming from the client side*/
 		if(EARLY_DATA && !readData){
 			/*Try and receive early data if any (Applicable for TLS 1.3 - should fail for TLS version <= TLS1.2)*/
 			std::string readBuf;
 			if(0 == receiveEarlyData(BUFFSIZE, readBuf)){
-				pass("Early Data read Success");
+				pass("SocketServer.cpp : Early Data Read Success");
 				readData = true; earlyData = true;
 				/*Time-stamps ---- 1*/
 				GET_TIME(eEarlyDataTime); GET_CPU(eEarlyDataCpu);
+
+				/*Send a response*/
+				if(0 == sendEarlyData()){
+					pass("SocketServer.cpp : Early Data Write Success");
+					writeData = true;
+					/*Time-stamps ---- 4*/
+					GET_TIME(eWriteTime); GET_CPU(eWriteCpu);
+				}else{
+					fail("SocketServer.cpp : Early Data Write Failed");
+				}
 			}else{
-				fail("Early Data read Fail");
+					fail("SocketServer.cpp : Early Data Read Failed");
 			}
 		}
 
@@ -584,16 +614,43 @@ int SocketServer::listen(){
 			/*Try and Read any data from the client*/
 			std::string readBuf;
 			if(0 == receive(BUFFSIZE, readBuf)){
-				pass("Data Read success");
+				pass("SocketServer.cpp : Data Read Success");
 				normalData = true; readData = true;
-				//cout << "Received Data is " << readBuf << endl;
 				/*Time-stamps ---- 3*/
 				GET_TIME(eReadTime); GET_CPU(eReadCpu);
+				/*Send response*/
+				if(0 == send()){
+					pass("SocketServer.cpp : Data Write Success");
+					writeData = true;
+					/*Time-stamps ---- 4*/
+					GET_TIME(eWriteTime); GET_CPU(eWriteCpu);
+				}else{
+					fail("SocketServer.cpp : Data Write Failed");
+				}
 			}else{
-				fail("Data Read fail");
+				fail("SocketServer.cpp : Data Read Failed");
 			}
 		}
 
+		/*Enabling Nagle's algorithm*/
+		if(DISABLE_NAGLE){
+			int sock;
+			BIO_get_fd(bio, &sock);
+			int flag = 0;
+			int result = setsockopt(sock,            /* socket affected */
+					IPPROTO_TCP,     /* set option at TCP level */
+					TCP_NODELAY,     /* name of option */
+					(char *) &flag,  /* the cast is historical
+					                                                         cruft */
+					sizeof(int));    /* length of option value */
+			if (result < 0){
+				perror("Nagle's algorithm enable failed");
+			}else{
+				cout << "Nagle's algorithm is enabled" << endl;
+			}
+		}
+
+		/********************************************Latency and CPU utilization*****************************************************/
 		if(READ_WRITE_TEST && EARLY_DATA && earlyData){
 			/*Latency for Early Data read operation*/
 			uint64_t delta_eData_us = timeDiff("SocketServer.cpp : Early Data Read Latency -", stTime, eEarlyDataTime);
@@ -616,6 +673,14 @@ int SocketServer::listen(){
 			uint64_t delta_read_cpu_us = cpuDiff("SocketServer.cpp : Read CPU utilization -", stCpu, eReadCpu);
 		}
 
+		if(READ_WRITE_TEST && writeData){
+			/*Latency for write operation on server*/
+			uint64_t delta_write_us = timeDiff("SocketServer.cpp : Write Latency -", stTime, eWriteTime);
+			/*Measure CPU usage time till write operation*/
+			uint64_t delta_write_cpu_us = cpuDiff("SocketServer.cpp : Write CPU utilization -", stCpu, eWriteCpu);
+		}
+
+		/********************************************************************************************************************************/
 
 		/*The selected Cipher-suite by the server is */
 		if(DEBUG)
@@ -628,7 +693,8 @@ int SocketServer::listen(){
 
 		/*Write to the output file*/
 		if(serverOpFile.is_open()){
-			serverOpFile << delta_accept_us << "," << delta_accept_cpu_us <<"," << delta_connect_cpu_user_us << "," << delta_connect_cpu_sys_us << "\n";
+			//serverOpFile << delta_accept_us << "," << delta_accept_cpu_us <<"," << delta_connect_cpu_user_us << "," << delta_connect_cpu_sys_us << "\n";
+			serverOpFile << delta_accept_cpu_us <<"," << delta_connect_cpu_user_us << "," << delta_connect_cpu_sys_us << "\n";
 		}
 		/*Leave one line*/
 		cout << endl;
@@ -648,17 +714,31 @@ int SocketServer::listen(){
  * Return type: int
  * Description: send message to the connected client
  * **************************************************************************/
-int SocketServer::send(std::string message){
-	const char* writeBuffer = message.data();
-	int length = message.length();
-	int n = SSL_write(this->conn, writeBuffer, length);
-	if(n < 0){
-		perror("SocketServer.cpp : Error on writing to client");
+int SocketServer::send(){
+	char writeBuffer[BUFFSIZE];
+	memset(writeBuffer, 0x00, BUFFSIZE);
+	BIO *edfile = BIO_new_file(DATA_FILE_SERVER, "r");
+	size_t readBytes = 0; int finish = 0;
+
+	if (edfile == NULL) {
+		BIO_printf(bio_err, "Cannot open server data file\n");
 		return -1;
-	}else{
-		cout << "Written successfully by the server" << endl;
 	}
-	return n;
+
+	while(!finish){
+
+		if(!BIO_read_ex(edfile, writeBuffer, BUFFSIZE, &readBytes)){
+			finish = 1;
+			break;
+		}
+
+		if(SSL_write(this->conn, writeBuffer, readBytes) <= 0){
+			perror("SocketServer.cpp : Error writing message from the server");
+			return -1;
+		}
+	}
+	BIO_free(edfile);
+	return 0;
 }
 
 /*****************************************************************************
@@ -668,10 +748,9 @@ int SocketServer::send(std::string message){
  * Description: send early data to the server
  * 				return 0 on success, -1 on failure
  * **************************************************************************/
-int SocketServer::sendEarlyData(std::string message){
+int SocketServer::sendEarlyData(){
 	char writeBuffer[BUFFSIZE];
 	memset(writeBuffer, 0x00, BUFFSIZE);
-	int length = message.length();
 	if(EARLY_DATA){
 		BIO *edfile = BIO_new_file(DATA_FILE_SERVER, "r");
 		size_t readBytes, written;
@@ -703,11 +782,8 @@ int SocketServer::sendEarlyData(std::string message){
 		}
 		BIO_free(edfile);
 		if(written != readBytes && written > 0){
-			cout << "SocketServer.cpp : early send data failed" << endl;
+			perror("SocketServer.cpp : Early send data failed");
 			return -1;
-		}else{
-			cout << "SocketServer.cpp : early send data success" << endl;
-			cout << "Written data is " << writeBuffer << endl;
 		}
 	}
 
@@ -722,6 +798,7 @@ int SocketServer::sendEarlyData(std::string message){
  * **************************************************************************/
 int SocketServer::receive(int size, std::string &readBuf){
 	char readBuffer[size];
+	memset(readBuffer, 0x00, BUFFSIZE);
 	int n = SSL_read(this->conn, readBuffer, sizeof(readBuffer));
 	if(n < 0){
 		perror("SocketServer.cpp : error on reading on the server");
@@ -739,6 +816,7 @@ int SocketServer::receive(int size, std::string &readBuf){
  * **************************************************************************/
 int SocketServer::receiveEarlyData(int size, std::string &readBuf){
 	char readBuffer[BUFFSIZE];
+	memset(readBuffer, 0x00, BUFFSIZE);
 	size_t readBytes = 0;size_t totalBytes = 0;
 	int  n = 0;
 	while(n != SSL_READ_EARLY_DATA_FINISH){
@@ -764,7 +842,6 @@ int SocketServer::receiveEarlyData(int size, std::string &readBuf){
 				totalBytes += readBytes;
 				if (SSL_EARLY_DATA_ACCEPTED == SSL_get_early_data_status(this->conn) && totalBytes > 0) {
 					readBuf = string(readBuffer);
-					//cout << readBuf << endl;
 					return 0;
 				}
 				break;

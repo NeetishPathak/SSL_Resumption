@@ -11,13 +11,13 @@ using namespace std;
 /*Session Related data*/
 SSL_SESSION *sessionDet = NULL;
 char *sess_out = NULL;
-bool resumeInput = TRUE;
+bool resumeInput = TRUE; bool sessSaved = false;
 static SSL_SESSION *psksess = NULL;
 BIO * bio_err = BIO_new_fp(stderr,0x00 | (((1 | 0x8000) & 0x8000) == 0x8000 ? 0x10 : 0));
 
 /* Default PSK identity and key */
 static char *psk_identity = "Client_identity";
-bool writeData = false; bool earlyDataBool = false; bool normalData = false;
+bool writeData = false; bool earlyDataBool = false; bool normalData = false; bool readData = false;
 
 /***********************************************************************
  * Function: psk_use_session_cb
@@ -113,12 +113,13 @@ static int new_session_cb(SSL* ssl, SSL_SESSION * sess){
 		PEM_write_bio_SSL_SESSION(stmp,sess);
 		BIO_free(stmp);
 		resumeInput = TRUE;
-		if(TRUE){
+		/*if(TRUE){
 			fprintf(stderr,"SocketClient.cpp: Session is saved on client Side");
 			SSL_SESSION_print_keylog(bio_err, sess);
 			BIO_printf(bio_err,"");
-		}
-		cout << "SocketClient.cpp : Session getting set" << endl;;
+		}*/
+		sessSaved = true;
+		pass("SocketClient.cpp : Session is cached on client side");
 	}
 
 	return 0;
@@ -279,7 +280,7 @@ int SocketClient::connectToServer(){
 	SSL_CTX_set_verify_depth(ssl_ctx,1);
 
 	/*Call TCP and SSL connect*/
-	writeData = false; earlyDataBool = false; normalData = false;
+	writeData = false; earlyDataBool = false; normalData = false; readData = false;sessSaved = false;
 	sslTcpConnect();
 	return 0;
 }
@@ -294,6 +295,18 @@ int SocketClient::connectToServer(){
  * **************************************************************************/
 int SocketClient::sslTcpConnect(){
 
+	/*For Time/CPU measurements, start a clock at the beginning just after the TCP connect and then
+	 * find out the latency and utilization time-stamps post early data write, SSL_connect and SSL_write*/
+
+	/*SocketClient.cpp : Time Measurement for SSL connection*/
+	struct timespec stTime, eEarlyDataTime, eConnectTime, eWriteTime, eReadTime;
+	struct timespec stCpu, eEarlyDataCpu, eConnectCpu, eWriteCpu, eReadCpu;
+	struct rusage startCpuTime; struct rusage endCpuTime;
+
+	/*Start the clock - time-stamp for initial time and CPU*/
+	GET_TIME(stTime); GET_CPU2(startCpuTime); GET_CPU(stCpu);
+
+
 	/****Establish TCP connection****/
 	/*Setting up BIO*/
 	bio = BIO_new_connect((this->serverName + ":" + this->portNumber).c_str());
@@ -305,6 +318,24 @@ int SocketClient::sslTcpConnect(){
 		pass("SocketClient.cpp : TCP connection successful");
 
 	}
+	/*Disabling Nagle's algorithm*/
+	if(DISABLE_NAGLE){
+		int sock;
+		BIO_get_fd(bio, &sock);
+		int flag = 1;
+		int result = setsockopt(sock,            /* socket affected */
+				IPPROTO_TCP,     /* set option at TCP level */
+				TCP_NODELAY,     /* name of option */
+				(char *) &flag,  /* the cast is historical
+		                                                         cruft */
+				sizeof(int));    /* length of option value */
+		if (result < 0){
+			perror("Nagle's algorithm disable failed");
+		}else{
+			cout << "Nagle's algorithm is disabled" << endl;
+		}
+	}
+
 	/*Attaching the SSL connection to the Socket*/
 	if((this->conn = SSL_new(this->ssl_ctx)) == NULL){
 		perror("SocketClient.cpp : create new SSL failed ");
@@ -314,9 +345,7 @@ int SocketClient::sslTcpConnect(){
 	/*set the file descriptor socket-fd as the input/output facility for the TLS/SSL*/
 	SSL_set_bio(conn, bio, bio);
 
-
 	/*Try to resume session*/
-
 	if(sessResume){
 		if(resumeInput){
 			SSL_SESSION *sess;
@@ -335,8 +364,8 @@ int SocketClient::sslTcpConnect(){
 				BIO_printf(bio_err, "Can't set session\n");
 				ERR_print_errors(bio_err);
 			}
-			SSL_SESSION_print_keylog(bio_err, sess);
-			BIO_printf(bio_err,"");
+			//SSL_SESSION_print_keylog(bio_err, sess);
+			//BIO_printf(bio_err,"");
 			SSL_SESSION_free(sess);
 			/*if(FALSE == TLSv1_3){
 				if(this->sessionId != NULL){
@@ -383,34 +412,19 @@ int SocketClient::sslTcpConnect(){
 			SSL_set_psk_use_session_callback(this->conn, psk_use_session_cb);
 	}
 
-	/*For Time/CPU measurements, start a clock at the beginning just after the TCP connect and then
-			* find out the latency and utilization time-stamps post early data write, SSL_connect and SSL_write*/
-
-		/*SocketClient.cpp : Time Measurement for SSL connection*/
-		struct timespec stTime, eEarlyDataTime, eConnectTime, eWriteTime;
-		struct timespec stCpu, eEarlyDataCpu, eConnectCpu, eWriteCpu;
-		struct rusage startCpuTime; struct rusage endCpuTime;
-
-	/*Start the clock - time-stamp for initial time and CPU*/
-	GET_TIME(stTime); GET_CPU2(startCpuTime); GET_CPU(stCpu);
-
-	if(READ_WRITE_TEST && EARLY_DATA && SSL_get0_session(conn) != NULL && SSL_SESSION_get_max_early_data(SSL_get0_session(conn)) > 0){
+	/*Try sending early data*/
+	if(READ_WRITE_TEST && EARLY_DATA){
 		if(writeData == false){
-			std::string earlyData = string(WRITE_DATA);
-
-			if(0 == sendEarlyData(earlyData)){
-				/*check if a full-handshake for fully protected application data is completed*/
-				if(SSL_is_init_finished(this->conn)){
-					pass("SocketClient.cpp : fully protected application data can be transferred");
-				}
-
+			if(0 == sendEarlyData()){
 				/*Time-stamps ---- 1*/
 				GET_TIME(eEarlyDataTime); GET_CPU(eEarlyDataCpu);
 				writeData = true; earlyDataBool = true;
+				pass("SocketClient.cpp : Early Data Write Success");
+			}else{
+				fail("SocketClient.cpp : Early Data Write Failed");
 			}
 		}
 	}
-
 
 	/*Perform the SSL handshake*/
 	if(SSL_connect(conn) != 1){
@@ -426,29 +440,60 @@ int SocketClient::sslTcpConnect(){
 	/*Time-stamps ---- 2*/
 	GET_TIME(eConnectTime); GET_CPU2(endCpuTime); GET_CPU(eConnectCpu);
 
-	if(tlsV1_3) /*This is important for session caching on client side in TLS 1.3*/
+	if(tlsV1_3 && !sessSaved) /*This is important for session caching on client side in TLS 1.3*/
 		SSL_read(this->conn, NULL, 0);
 
 	//SSL_CTX_get_client_CA_list(this->ssl_ctx);
+	/*check if early data was accepted*/
+	if (SSL_EARLY_DATA_ACCEPTED != SSL_get_early_data_status(this->conn)){
+		writeData = false; earlyDataBool=false;
+	}
 
 	if(READ_WRITE_TEST){
 		if(false == writeData){
-			cout << "Send data " << endl;
-			/*check if a full-handshake for fully protected application data is completed*/
-			if(SSL_is_init_finished(this->conn)){
-				pass("SocketClient.cpp : fully protected application data can be transferred");
-				/*write something to the server*/
-				std::string data = std::string(WRITE_DATA);
-				if(send(data) >= 0){
-					cout << "Client write success" << endl;
-					writeData = true; normalData = true;
-					/*Time-stamps ---- 3*/
-					GET_TIME(eWriteTime); GET_CPU(eWriteCpu);
-				}
+			/*write something to the socket*/
+			if(send() == 0){
+				pass("SocketClient.cpp : Data Write Success");
+				writeData = true; normalData = true;
+				/*Time-stamps ---- 3*/
+				GET_TIME(eWriteTime); GET_CPU(eWriteCpu);
+			}else{
+				fail("SocketClient.cpp : Data Write Failed");
 			}
+
 		}
 	}
 
+	/*if data is not read yet, perform a read*/
+	if(false == readData){
+		if(receive(BUFFSIZE) == 0){
+			/*Time-stamps ---- 4*/
+			GET_TIME(eReadTime); GET_CPU(eReadCpu);
+			readData = true;
+			pass("SocketClient.cpp : Data Read Success");
+		}else{
+			fail("SocketClient.cpp : Data Read Failed");
+		}
+	}
+
+
+	/*Enabling Nagle's algorithm*/
+	if(DISABLE_NAGLE){
+		int sock;
+		BIO_get_fd(bio, &sock);
+		int flag = 0;
+		int result = setsockopt(sock,            /* socket affected */
+				IPPROTO_TCP,     /* set option at TCP level */
+				TCP_NODELAY,     /* name of option */
+				(char *) &flag,  /* the cast is historical
+			                                                         cruft */
+				sizeof(int));    /* length of option value */
+		if (result < 0){
+			perror("Nagle's algorithm enable failed");
+		}else{
+			cout << "Nagle's algorithm is enabled" << endl;
+		}
+	}
 
 	/*-------------------------------------------- Printing the time taken for handshake -------------------------------------*/
 	if(READ_WRITE_TEST && EARLY_DATA && earlyDataBool){
@@ -467,10 +512,18 @@ int SocketClient::sslTcpConnect(){
 													delta_connect_cpu_user_us, delta_connect_cpu_sys_us);
 
 	if(READ_WRITE_TEST && normalData){
-		/*Latency for read operation on server*/
+		/*Latency for write operation on client*/
 		uint64_t delta_write_us = timeDiff("SocketClient.cpp : Data Write Latency -", stTime, eWriteTime);
-		/*Measure CPU usage time till read operation*/
+		/*Measure CPU usage time till write operation*/
 		uint64_t delta_write_cpu_us = cpuDiff("SocketClient.cpp : Data Write CPU utilization -", stCpu, eWriteCpu);
+	}
+
+	if(READ_WRITE_TEST && readData){
+		/*Latency for read operation on client*/
+		uint64_t delta_read_us = timeDiff("SocketClient.cpp : Data Read Latency -", stTime, eReadTime);
+		/*Measure CPU usage time till read operation*/
+		uint64_t delta_read_cpu_us = cpuDiff("SocketClient.cpp : Data Read CPU utilization -", stCpu, eReadCpu);
+		clientOpFile << delta_connect_us << "," << delta_connect_cpu_us << "," << delta_connect_cpu_user_us << "," << delta_connect_cpu_sys_us << "\n";
 	}
 	/*------------------------------------------------------------------------------------------------------------------------*/
 
@@ -478,7 +531,11 @@ int SocketClient::sslTcpConnect(){
 	cipher("SocketClient.cpp :  Client Used Cipher : ", SSL_get_cipher(conn));
 
 	/*Log the latency and cpu utilization values in the clientLogFile*/
-	clientOpFile << delta_connect_us << "," << delta_connect_cpu_us << "," << delta_connect_cpu_user_us << "," << delta_connect_cpu_sys_us << "\n";
+	if(READ_WRITE_TEST){
+		//do nothing here - data is already logged
+	}else{
+		clientOpFile << delta_connect_us << "," << delta_connect_cpu_us << "," << delta_connect_cpu_user_us << "," << delta_connect_cpu_sys_us << "\n";
+	}
 
 
 
@@ -492,14 +549,14 @@ int SocketClient::sslTcpConnect(){
  * Description: send message to the server
  * 				return 0 on success, -1 on failure
  * **************************************************************************/
-int SocketClient::send(std::string message){
+int SocketClient::send(){
 	char writeBuffer[BUFFSIZE];
-
+	memset(writeBuffer, 0x00, BUFFSIZE);
 	BIO *edfile = BIO_new_file(DATA_FILE_CLIENT, "r");
 	size_t readBytes = 0; int finish = 0;
 
 	if (edfile == NULL) {
-			BIO_printf(bio_err, "Cannot open early data file\n");
+			BIO_printf(bio_err, "Cannot open client data file\n");
 			return -1;
 	}
 
@@ -517,7 +574,6 @@ int SocketClient::send(std::string message){
 	}
 
 	BIO_free(edfile);
-	cout << "WRITE SUCCESS" << endl;
 	return 0;
 }
 
@@ -528,9 +584,9 @@ int SocketClient::send(std::string message){
  * Description: send early data to the server
  * 				return 0 on success, -1 on failure
  * **************************************************************************/
-int SocketClient::sendEarlyData(std::string message){
+int SocketClient::sendEarlyData(){
 	char writeBuffer[BUFFSIZE];
-	int length = message.length();
+	memset(writeBuffer, 0x00, BUFFSIZE);
 	if(EARLY_DATA){
 		BIO *edfile = BIO_new_file(DATA_FILE_CLIENT, "r");
 		size_t readBytes, written;
@@ -562,31 +618,29 @@ int SocketClient::sendEarlyData(std::string message){
 		}
 		BIO_free(edfile);
 		if(written != readBytes){
-			cout << "SocketClient.cpp : early send data failed" << endl;
+			fail("SocketClient.cpp : Early Send Data Failed");
 			return -1;
-		}else{
-			cout << "SocketClient.cpp : early send data success" << endl;
 		}
 	}
-
 	return 0;
 }
 
 /*****************************************************************************
  * Function: receive
  * Parameters: size
- * Return type: string
+ * Return type: int
  * Description: read the size number of bytes from the buffer
  * 				when connected to the server
  * **************************************************************************/
-string SocketClient::receive(int size){
+int SocketClient::receive(int size){
 	char readBuffer[size];
-
+	memset(readBuffer, 0x00, BUFFSIZE);
 	int n = SSL_read(this->conn, readBuffer, sizeof(readBuffer));
 	if(n<0){
 		perror("SocketClient.cpp : error reading from socket");
+		return -1;
 	}
-	return string(readBuffer);	
+	return 0;
 }
 
 /*****************************************************************************

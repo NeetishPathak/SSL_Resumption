@@ -69,9 +69,9 @@ public:
 	virtual int sslTcpConnect();
 	virtual int sslTcpClosure();
 	virtual int disconnectFromServer();
-	virtual int send(std::string message);
-	virtual int sendEarlyData(std::string message);
-	virtual std::string receive(int size);
+	virtual int send();
+	virtual int sendEarlyData();
+	virtual int receive(int size);
 	//virtual int sessGetCb();
 	bool isServerConnected(){return this->isConnected;}
 	virtual ~SocketClient();
