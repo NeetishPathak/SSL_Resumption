@@ -682,7 +682,7 @@ int SocketServer::listen(){
 			uint64_t delta_write_cpu_user_us = 0; uint64_t delta_write_cpu_sys_us = 0;
 			uint64_t delta_write_cpu_us_2 = cpuDiffSysUser("SocketClient.cpp : Handshake CPU Utilization -", startCpuTime, endWriteCpuTime, \
 					delta_write_cpu_user_us, delta_write_cpu_sys_us);
-			clientOpFile << delta_write_us << "," << delta_write_cpu_us << "," << delta_write_cpu_user_us << "," << delta_write_cpu_sys_us<< "\n";
+			serverOpFile << delta_write_us << "," << delta_write_cpu_us << "," << delta_write_cpu_user_us << "," << delta_write_cpu_sys_us<< "\n";
 		}
 
 		/********************************************************************************************************************************/
