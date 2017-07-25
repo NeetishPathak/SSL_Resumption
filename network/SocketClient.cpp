@@ -301,7 +301,7 @@ int SocketClient::sslTcpConnect(){
 	/*SocketClient.cpp : Time Measurement for SSL connection*/
 	struct timespec stTime, eEarlyDataTime, eConnectTime, eWriteTime, eReadTime;
 	struct timespec stCpu, eEarlyDataCpu, eConnectCpu, eWriteCpu, eReadCpu;
-	struct rusage startCpuTime; struct rusage endCpuTime;
+	struct rusage startCpuTime; struct rusage endCpuTime; struct rusage endReadCpuTime;
 
 	/*Start the clock - time-stamp for initial time and CPU*/
 	GET_TIME(stTime); GET_CPU2(startCpuTime); GET_CPU(stCpu);
@@ -468,7 +468,7 @@ int SocketClient::sslTcpConnect(){
 	if(false == readData){
 		if(receive(BUFFSIZE) == 0){
 			/*Time-stamps ---- 4*/
-			GET_TIME(eReadTime); GET_CPU(eReadCpu);
+			GET_TIME(eReadTime); GET_CPU(eReadCpu); GET_CPU2(endReadCpuTime);
 			readData = true;
 			pass("SocketClient.cpp : Data Read Success");
 		}else{
@@ -523,7 +523,10 @@ int SocketClient::sslTcpConnect(){
 		uint64_t delta_read_us = timeDiff("SocketClient.cpp : Data Read Latency -", stTime, eReadTime);
 		/*Measure CPU usage time till read operation*/
 		uint64_t delta_read_cpu_us = cpuDiff("SocketClient.cpp : Data Read CPU utilization -", stCpu, eReadCpu);
-		clientOpFile << delta_connect_us << "," << delta_connect_cpu_us << "," << delta_connect_cpu_user_us << "," << delta_connect_cpu_sys_us << "\n";
+		uint64_t delta_read_cpu_user_us = 0; uint64_t delta_read_cpu_sys_us = 0;
+		uint64_t delta_read_cpu_us_2 = cpuDiffSysUser("SocketClient.cpp : Handshake CPU Utilization -", startCpuTime, endReadCpuTime, \
+															delta_read_cpu_user_us, delta_read_cpu_sys_us);
+		clientOpFile << delta_read_us << "," << delta_read_cpu_us << "," << delta_read_cpu_user_us << "," << delta_read_cpu_sys_us<< "\n";
 	}
 	/*------------------------------------------------------------------------------------------------------------------------*/
 

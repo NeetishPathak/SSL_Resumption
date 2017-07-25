@@ -505,31 +505,12 @@ int SocketServer::listen(){
 
 		struct timespec stTime, eEarlyDataTime, eAcceptTime, eReadTime, eWriteTime;
 		struct timespec stCpu, eEarlyDataCpu, eAcceptCpu, eReadCpu, eWriteCpu;
-		struct rusage startCpuTime; struct rusage endCpuTime;
+		struct rusage startCpuTime; struct rusage endCpuTime; struct rusage endWriteCpuTime;
 
 		/*Start the clock - time-stamp for initial time and CPU*/
 		GET_TIME(stTime); GET_CPU2(startCpuTime); GET_CPU(stCpu);
 
 		readData = false; earlyData = false; normalData = false; writeData = false;
-
-		/*Disabling Nagle's algorithm*/
-		if(DISABLE_NAGLE){
-			int sock;
-			BIO_get_fd(bio, &sock);
-			int flag = 1;
-			int result = setsockopt(sock,            /* socket affected */
-					IPPROTO_TCP,     /* set option at TCP level */
-					TCP_NODELAY,     /* name of option */
-					(char *) &flag,  /* the cast is historical
-				                                                         cruft */
-					sizeof(int));    /* length of option value */
-			if (result < 0){
-				perror("Nagle's algorithm disable failed");
-			}else{
-				cout << "Nagle's algorithm is disabled" << endl;
-			}
-		}
-
 
 		if(BIO_do_accept(bio) <= 0){
 			if(quit.load()){return 0;}
@@ -539,6 +520,26 @@ int SocketServer::listen(){
 			pass("SocketServer.cpp : TCP connection successful");
 		}
 		this->bioClient = BIO_pop(bio);
+
+		/*Disabling Nagle's algorithm*/
+		if(DISABLE_NAGLE){
+			int sock;
+			BIO_get_fd(this->bioClient, &sock);
+			int flag = 1;
+			int result = setsockopt(sock,            /* socket affected */
+					IPPROTO_TCP,     /* set option at TCP level */
+					TCP_NODELAY,     /* name of option */
+					(char *) &flag,  /* the cast is historical
+						                                                         cruft */
+					sizeof(int));    /* length of option value */
+			if (result < 0){
+				perror("Nagle's algorithm disable failed");
+			}else{
+				cout << "Nagle's algorithm is disabled" << endl;
+			}
+		}
+
+
 
 		/*Attach the SSL connection to socket*/
 		conn = SSL_new(ssl_ctx);
@@ -588,7 +589,7 @@ int SocketServer::listen(){
 					pass("SocketServer.cpp : Early Data Write Success");
 					writeData = true;
 					/*Time-stamps ---- 4*/
-					GET_TIME(eWriteTime); GET_CPU(eWriteCpu);
+					GET_TIME(eWriteTime); GET_CPU(eWriteCpu); GET_CPU2(endWriteCpuTime);
 				}else{
 					fail("SocketServer.cpp : Early Data Write Failed");
 				}
@@ -623,7 +624,7 @@ int SocketServer::listen(){
 					pass("SocketServer.cpp : Data Write Success");
 					writeData = true;
 					/*Time-stamps ---- 4*/
-					GET_TIME(eWriteTime); GET_CPU(eWriteCpu);
+					GET_TIME(eWriteTime); GET_CPU(eWriteCpu); GET_CPU2(endWriteCpuTime);
 				}else{
 					fail("SocketServer.cpp : Data Write Failed");
 				}
@@ -635,7 +636,7 @@ int SocketServer::listen(){
 		/*Enabling Nagle's algorithm*/
 		if(DISABLE_NAGLE){
 			int sock;
-			BIO_get_fd(bio, &sock);
+			BIO_get_fd(bioClient, &sock);
 			int flag = 0;
 			int result = setsockopt(sock,            /* socket affected */
 					IPPROTO_TCP,     /* set option at TCP level */
@@ -678,6 +679,10 @@ int SocketServer::listen(){
 			uint64_t delta_write_us = timeDiff("SocketServer.cpp : Write Latency -", stTime, eWriteTime);
 			/*Measure CPU usage time till write operation*/
 			uint64_t delta_write_cpu_us = cpuDiff("SocketServer.cpp : Write CPU utilization -", stCpu, eWriteCpu);
+			uint64_t delta_write_cpu_user_us = 0; uint64_t delta_write_cpu_sys_us = 0;
+			uint64_t delta_write_cpu_us_2 = cpuDiffSysUser("SocketClient.cpp : Handshake CPU Utilization -", startCpuTime, endWriteCpuTime, \
+					delta_write_cpu_user_us, delta_write_cpu_sys_us);
+			clientOpFile << delta_write_us << "," << delta_write_cpu_us << "," << delta_write_cpu_user_us << "," << delta_write_cpu_sys_us<< "\n";
 		}
 
 		/********************************************************************************************************************************/
@@ -693,8 +698,12 @@ int SocketServer::listen(){
 
 		/*Write to the output file*/
 		if(serverOpFile.is_open()){
-			//serverOpFile << delta_accept_us << "," << delta_accept_cpu_us <<"," << delta_connect_cpu_user_us << "," << delta_connect_cpu_sys_us << "\n";
-			serverOpFile << delta_accept_cpu_us <<"," << delta_connect_cpu_user_us << "," << delta_connect_cpu_sys_us << "\n";
+			if(READ_WRITE_TEST){
+				//do nothing already logged
+			}else{
+				//serverOpFile << delta_accept_us << "," << delta_accept_cpu_us <<"," << delta_connect_cpu_user_us << "," << delta_connect_cpu_sys_us << "\n";
+				serverOpFile << delta_accept_cpu_us <<"," << delta_connect_cpu_user_us << "," << delta_connect_cpu_sys_us << "\n";
+			}
 		}
 		/*Leave one line*/
 		cout << endl;
