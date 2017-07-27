@@ -14,7 +14,7 @@ static simple_ssl_session *first = NULL;
 static SSL_SESSION *psksess = NULL;
 static char *psk_identity = "Client_identity";
 BIO * bio_err = BIO_new_fp(stderr,0x00 | (((1 | 0x8000) & 0x8000) == 0x8000 ? 0x10 : 0));
-bool readData = false; bool earlyData = false; bool normalData = false; bool writeData = false;
+bool readData = false; bool earlyDataRead = false; bool normalData = false; bool writeData = false;
 /************************************************************************************************/
 /*Following functions are for explicit (user enabled) caching on the server side*/
 /************************************************************************************************/
@@ -510,7 +510,7 @@ int SocketServer::listen(){
 		/*Start the clock - time-stamp for initial time and CPU*/
 		GET_TIME(stTime); GET_CPU2(startCpuTime); GET_CPU(stCpu);
 
-		readData = false; earlyData = false; normalData = false; writeData = false;
+		readData = false; earlyDataRead = false; normalData = false; writeData = false;
 
 		if(BIO_do_accept(bio) <= 0){
 			if(quit.load()){return 0;}
@@ -575,12 +575,12 @@ int SocketServer::listen(){
 		}
 
 		/*Try and read early data coming from the client side*/
-		if(EARLY_DATA && !readData){
+		if(earlyData && !readData){
 			/*Try and receive early data if any (Applicable for TLS 1.3 - should fail for TLS version <= TLS1.2)*/
 			std::string readBuf;
 			if(0 == receiveEarlyData(BUFFSIZE, readBuf)){
 				pass("SocketServer.cpp : Early Data Read Success");
-				readData = true; earlyData = true;
+				readData = true; earlyDataRead = true;
 				/*Time-stamps ---- 1*/
 				GET_TIME(eEarlyDataTime); GET_CPU(eEarlyDataCpu);
 
@@ -652,7 +652,7 @@ int SocketServer::listen(){
 		}
 
 		/********************************************Latency and CPU utilization*****************************************************/
-		if(READ_WRITE_TEST && EARLY_DATA && earlyData){
+		if(READ_WRITE_TEST && earlyData && earlyDataRead){
 			/*Latency for Early Data read operation*/
 			uint64_t delta_eData_us = timeDiff("SocketServer.cpp : Early Data Read Latency -", stTime, eEarlyDataTime);
 			/*Measure CPU usage for Early Data read operation*/
@@ -761,7 +761,7 @@ int SocketServer::send(){
 int SocketServer::sendEarlyData(){
 	char writeBuffer[BUFFSIZE];
 	memset(writeBuffer, 0x00, BUFFSIZE);
-	if(EARLY_DATA){
+	if(earlyData){
 		BIO *edfile = BIO_new_file(DATA_FILE_SERVER, "r");
 		size_t readBytes, written;
 		int finish = 0;

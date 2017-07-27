@@ -17,7 +17,7 @@ BIO * bio_err = BIO_new_fp(stderr,0x00 | (((1 | 0x8000) & 0x8000) == 0x8000 ? 0x
 
 /* Default PSK identity and key */
 static char *psk_identity = "Client_identity";
-bool writeData = false; bool earlyDataBool = false; bool normalData = false; bool readData = false;
+bool writeData = false; bool earlyDataWrite = false; bool normalData = false; bool readData = false;
 
 /***********************************************************************
  * Function: psk_use_session_cb
@@ -280,7 +280,7 @@ int SocketClient::connectToServer(){
 	SSL_CTX_set_verify_depth(ssl_ctx,1);
 
 	/*Call TCP and SSL connect*/
-	writeData = false; earlyDataBool = false; normalData = false; readData = false;sessSaved = false;
+	writeData = false; earlyDataWrite = false; normalData = false; readData = false;sessSaved = false;
 	sslTcpConnect();
 	return 0;
 }
@@ -413,12 +413,12 @@ int SocketClient::sslTcpConnect(){
 	}
 
 	/*Try sending early data*/
-	if(READ_WRITE_TEST && EARLY_DATA){
+	if(READ_WRITE_TEST && earlyData){
 		if(writeData == false){
 			if(0 == sendEarlyData()){
 				/*Time-stamps ---- 1*/
 				GET_TIME(eEarlyDataTime); GET_CPU(eEarlyDataCpu);
-				writeData = true; earlyDataBool = true;
+				writeData = true; earlyDataWrite = true;
 				pass("SocketClient.cpp : Early Data Write Success");
 			}else{
 				fail("SocketClient.cpp : Early Data Write Failed");
@@ -446,7 +446,7 @@ int SocketClient::sslTcpConnect(){
 	//SSL_CTX_get_client_CA_list(this->ssl_ctx);
 	/*check if early data was accepted*/
 	if (SSL_EARLY_DATA_ACCEPTED != SSL_get_early_data_status(this->conn)){
-		writeData = false; earlyDataBool=false;
+		writeData = false; earlyDataWrite=false;
 	}
 
 	if(READ_WRITE_TEST){
@@ -496,7 +496,7 @@ int SocketClient::sslTcpConnect(){
 	}
 
 	/*-------------------------------------------- Printing the time taken for handshake -------------------------------------*/
-	if(READ_WRITE_TEST && EARLY_DATA && earlyDataBool){
+	if(READ_WRITE_TEST && earlyData && earlyDataWrite){
 		/*Latency for Early Data read operation*/
 		uint64_t delta_eData_us = timeDiff("SocketClient.cpp : Early Data Write Latency -", stTime, eEarlyDataTime);
 		/*Measure CPU usage for Early Data read operation*/
@@ -591,7 +591,7 @@ int SocketClient::send(){
 int SocketClient::sendEarlyData(){
 	char writeBuffer[BUFFSIZE];
 	memset(writeBuffer, 0x00, BUFFSIZE);
-	if(EARLY_DATA){
+	if(earlyData){
 		BIO *edfile = BIO_new_file(DATA_FILE_CLIENT, "r");
 		size_t readBytes, written;
 		int finish = 0;

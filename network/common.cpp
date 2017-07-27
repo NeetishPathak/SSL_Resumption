@@ -22,6 +22,7 @@ bool sessResume = false;
 bool noSessionTickets = true;
 bool tlsV1_3 = false;
 bool pskTlsV1_3 = false;
+bool earlyData = false;
 char *sess_file = SESS_OUT;
 int minTlsVersion = TLS1_VERSION;
 int maxTlsVersion = TLS1_2_VERSION;
@@ -100,6 +101,14 @@ void initTLS(test_Case_Num tc){
 			break;
 
 		case TLS1_3_0_RTT:
+			sessResume = true;
+			noSessionTickets = true;
+			tlsV1_3 = true;
+			pskTlsV1_3 = false;
+			earlyData = true;
+			maxTlsVersion = TLS1_3_VERSION;
+			break;
+
 		case TLS1_2_FALSE_START:
 		default:
 			fail("Invalid Test Case");

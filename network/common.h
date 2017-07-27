@@ -91,13 +91,7 @@
 
 /*Early Data*/
 #define DISABLE_NAGLE TRUE
-
-#if (EARLY == TRUE)
-	#define EARLY_DATA TRUE
-#else
-	#define EARLY_DATA FALSE
-#endif
-
+#define EARLY_DATA TRUE
 #define READ_WRITE_TEST TRUE
 //#define WRITE_DATA "GET / HTTP/1.1\r\nHost: \r\nConnection: close\r\n\r\n"
 #define WRITE_DATA "Message \0"
@@ -106,7 +100,7 @@
 #define BUFFSIZE 16*1024
 
 /*TestCase Run Count*/
-#define HANDSHAKES_CNT 1000
+#define HANDSHAKES_CNT 3
 #define HANDSHAKES_CNT_LOOP TRUE
 
 /*Log files*/
@@ -165,6 +159,7 @@ extern bool sessResume;
 extern bool noSessionTickets;
 extern bool tlsV1_3;
 extern bool pskTlsV1_3;
+extern bool earlyData;
 extern char *sess_file;
 extern int minTlsVersion;
 extern int maxTlsVersion;
