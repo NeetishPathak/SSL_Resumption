@@ -636,7 +636,7 @@ int SocketServer::listen(){
 		/*Enabling Nagle's algorithm*/
 		if(DISABLE_NAGLE){
 			int sock;
-			BIO_get_fd(bioClient, &sock);
+			BIO_get_fd(this->bioClient, &sock);
 			int flag = 0;
 			int result = setsockopt(sock,            /* socket affected */
 					IPPROTO_TCP,     /* set option at TCP level */
@@ -682,7 +682,8 @@ int SocketServer::listen(){
 			uint64_t delta_write_cpu_user_us = 0; uint64_t delta_write_cpu_sys_us = 0;
 			uint64_t delta_write_cpu_us_2 = cpuDiffSysUser("SocketClient.cpp : Handshake CPU Utilization -", startCpuTime, endWriteCpuTime, \
 					delta_write_cpu_user_us, delta_write_cpu_sys_us);
-			serverOpFile << delta_write_us << "," << delta_write_cpu_us << "," << delta_write_cpu_user_us << "," << delta_write_cpu_sys_us<< "\n";
+			serverOpFile << delta_accept_us << "," << delta_accept_cpu_us << "," << delta_connect_cpu_user_us << "," << delta_connect_cpu_sys_us << "," << \
+					delta_write_us << "," << delta_write_cpu_us << "," << delta_write_cpu_user_us << "," << delta_write_cpu_sys_us<< "\n";
 		}
 
 		/********************************************************************************************************************************/

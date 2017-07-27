@@ -526,7 +526,8 @@ int SocketClient::sslTcpConnect(){
 		uint64_t delta_read_cpu_user_us = 0; uint64_t delta_read_cpu_sys_us = 0;
 		uint64_t delta_read_cpu_us_2 = cpuDiffSysUser("SocketClient.cpp : Handshake CPU Utilization -", startCpuTime, endReadCpuTime, \
 															delta_read_cpu_user_us, delta_read_cpu_sys_us);
-		clientOpFile << delta_read_us << "," << delta_read_cpu_us << "," << delta_read_cpu_user_us << "," << delta_read_cpu_sys_us<< "\n";
+		clientOpFile << delta_connect_us << "," << delta_connect_cpu_us << "," << delta_connect_cpu_user_us << "," << delta_connect_cpu_sys_us << "," <<\
+				delta_read_us << "," << delta_read_cpu_us << "," << delta_read_cpu_user_us << "," << delta_read_cpu_sys_us<< "\n";
 	}
 	/*------------------------------------------------------------------------------------------------------------------------*/
 
