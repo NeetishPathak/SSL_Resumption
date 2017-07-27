@@ -91,7 +91,13 @@
 
 /*Early Data*/
 #define DISABLE_NAGLE TRUE
-#define EARLY_DATA TRUE
+
+#if (EARLY == TRUE)
+	#define EARLY_DATA TRUE
+#else
+	#define EARLY_DATA FALSE
+#endif
+
 #define READ_WRITE_TEST TRUE
 //#define WRITE_DATA "GET / HTTP/1.1\r\nHost: \r\nConnection: close\r\n\r\n"
 #define WRITE_DATA "Message \0"
