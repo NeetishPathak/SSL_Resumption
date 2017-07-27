@@ -440,7 +440,7 @@ int SocketClient::sslTcpConnect(){
 	/*Time-stamps ---- 2*/
 	GET_TIME(eConnectTime); GET_CPU2(endCpuTime); GET_CPU(eConnectCpu);
 
-	if(tlsV1_3 && !sessSaved) /*This is important for session caching on client side in TLS 1.3*/
+	if(tlsV1_3) /*This is important for session caching on client side in TLS 1.3*/
 		SSL_read(this->conn, NULL, 0);
 
 	//SSL_CTX_get_client_CA_list(this->ssl_ctx);
