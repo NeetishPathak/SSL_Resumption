@@ -100,7 +100,7 @@
 #define BUFFSIZE 16*1024
 
 /*TestCase Run Count*/
-#define HANDSHAKES_CNT 3
+#define HANDSHAKES_CNT 1000
 #define HANDSHAKES_CNT_LOOP TRUE
 
 /*Log files*/
