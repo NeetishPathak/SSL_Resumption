@@ -847,6 +847,7 @@ int SocketServer::receiveEarlyData(int size, std::string &readBuf){
 				break;
 			case SSL_READ_EARLY_DATA_SUCCESS:
 				totalBytes += readBytes;
+				return 0;
 				break;
 			case SSL_READ_EARLY_DATA_FINISH:
 				totalBytes += readBytes;
