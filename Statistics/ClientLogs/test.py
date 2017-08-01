@@ -42,16 +42,7 @@ def findStats(filename):
 			break;
 	d1 = array(con_lat);d2 = array(con_cpu_u);d3 = array(con_cpu_s);
 	d4 = array(rw_lat); d5 = array(rw_cpu_u); d6 = array(rw_cpu_s);
-	print filename
-	
-	print str("Connection Time"), str("Read Write Complete");
-	print str("Mean "), np.mean(d1), np.mean(d2), np.mean(d3), np.mean(d4), np.mean(d5), np.mean(d6)
-	print str("95 % "), np.percentile(d1,95), np.percentile(d2,95), np.percentile(d3,95), np.percentile(d4,95), np.percentile(d5,95), np.percentile(d6,95)
-	print str("99 % "), np.percentile(d1,99), np.percentile(d2,99), np.percentile(d3,99), np.percentile(d4,99), np.percentile(d5,99), np.percentile(d6,99)
-	print str("Stdv "), np.std(d1),np.std(d2),np.std(d3),np.std(d4),np.std(d5),np.std(d6)
-	print str("Min  "), np.min(d1), np.min(d2),np.min(d3), np.min(d4),np.min(d5), np.min(d6); 
-	print str("Max  "), np.max(d1), np.max(d2),np.max(d3), np.max(d4),np.max(d5), np.max(d6); 
-	print str("Median "), np.median(d1), np.median(d2),np.median(d3), np.median(d4),np.median(d5), np.median(d6);
+	print str('FileName'),filename
 	print tabulate([['Average', np.mean(d1), np.mean(d2), np.mean(d3), np.mean(d4), np.mean(d5), np.mean(d6)],
 				['95%', np.percentile(d1,95), np.percentile(d2,95), np.percentile(d3,95), np.percentile(d4,95), np.percentile(d5,95), np.percentile(d6,95)],
 				['99%', np.percentile(d1,99), np.percentile(d2,99), np.percentile(d3,99), np.percentile(d4,99), np.percentile(d5,99), np.percentile(d6,99)],
