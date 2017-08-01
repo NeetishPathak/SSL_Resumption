@@ -50,7 +50,7 @@ def findStats(filename):
 				['Min', np.min(d1), np.min(d2),np.min(d3), np.min(d4),np.min(d5), np.min(d6)],
 				['Max', np.max(d1), np.max(d2),np.max(d3), np.max(d4),np.max(d5), np.max(d6)],
 				['Median', np.median(d1), np.median(d2),np.median(d3), np.median(d4),np.median(d5), np.median(d6)]],
-				headers=['Param','Connection time', 'Conn User-CPU ','Conn Sys-CPU', 'W/R Completion', 'W/R User-CPU', 'W/R Sys-CPU'])
+				headers=['Param','Connection time', 'Conn User-CPU ','Conn Sys-CPU', 'W/R Completion', 'W/R User-CPU', 'W/R Sys-CPU'], tablefmt='orgtbl')
 	
 	
 #Main function
