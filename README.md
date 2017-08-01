@@ -34,6 +34,7 @@ $ openssl help <br />
 	5		TLS1.3_Session Resumption using Shared PSK
 	6		TLS1.3_Session Resumption using External PSK 
 	7 		TLS1.3_Session Resumption using External Session file
+	8		TLS1.3_Session Resumption with Early Data
 							
 ### Ciphersuite_Code	&ensp;&ensp;	CipherSuite Explanation
 	1		ECDHE-ECDSA-AES256-GCM-SHA384 with X25519 Elliptic curve
@@ -51,7 +52,7 @@ $ openssl help <br />
 
 #### Note: 
 CipherSuite_Code 1, 11, 2, 21, 3, 4, 5, 6 can be only used with TLS 1.2 (TestCase_Code 1,2 and 3) <br />
-CipherSuite_Code 7, 71, 8, 81 can be only used with TLS 1.3 (TestCase_Code 4,5 and 6) <br />
+CipherSuite_Code 7, 71, 8, 81 can be only used with TLS 1.3 (TestCase_Code 4,5, 6,7 and 8) <br />
 
 4) Example run <br />
 
