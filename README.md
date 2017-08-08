@@ -52,18 +52,19 @@ $ openssl help <br />
 
 #### Note: 
 CipherSuite_Code 1, 11, 2, 21, 3, 4, 5, 6 can be only used with TLS 1.2 (TestCase_Code 1,2 and 3) <br />
-CipherSuite_Code 7, 71, 8, 81 can be only used with TLS 1.3 (TestCase_Code 4,5, 6,7 and 8) <br />
+CipherSuite_Code 7, 71, 8, 81 can be only used with TLS 1.3 (TestCase_Code 4,5, 6,7) <br />
+CipherSuite_Code 7 and 8 shoud only be used with early Data test Case i.e. test Case 8
 
 4) Example run <br />
 
-a) ./server 1 1
+a) ./server 1 1 <br/>
 run server for no session resumption connection on TLS 1.2 using cipher suite ECDHE-ECDSA-AES256-GCM-SHA384 using elliptic curve X25519 <br />
-./client 10.176.3.159 1 1
+./client 10.176.3.159 1 1 <br/>
 run client to connect to server running on 10.176.3.159 for the no resumption connection on TLS 1.2 using cipher suite ECDHE-ECDSA-AES256-GCM-SHA384 using elliptic curve X25519 <br />
 
-b) ./server 4 7	6001
+b) ./server 4 7	6001 <br/>
 run server acceptinfg connection on port 6001 for no session resumption connection on TLS 1.3 using cipher suite TLS13-AES-128-GCM-SHA256 using elliptic curve X25519 <br />
-./client 10.176.3.159 4 7 6001
+./client 10.176.3.159 4 7 6001 <br/>
 run client to connect to server running on 10.176.3.159 on port 6001 for no session resumption connection on TLS 1.3 using cipher suite TLS13-AES-128-GCM-SHA256 using elliptic curve X25519 <br />
 	
 ## Keys, Certificates, Session Files
