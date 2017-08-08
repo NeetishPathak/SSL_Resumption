@@ -53,7 +53,7 @@ $ openssl help <br />
 #### Note: 
 CipherSuite_Code 1, 11, 2, 21, 3, 4, 5, 6 can be only used with TLS 1.2 (TestCase_Code 1,2 and 3) <br />
 CipherSuite_Code 7, 71, 8, 81 can be only used with TLS 1.3 (TestCase_Code 4,5, 6,7) <br />
-CipherSuite_Code 7 and 8 shoud only be used with early Data test Case i.e. test Case 8
+Only CipherSuite_Code 7 and 8 should be used with early Data test Case i.e. test Case 8
 
 4) Example run <br />
 
