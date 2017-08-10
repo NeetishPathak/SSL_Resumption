@@ -1,5 +1,5 @@
 # Statistics <br />
-Statistics Directory contains generated client Server Logs and TestCases Directory <br />
+Statistics Directory contains generated Client logs, Server Logs and TestCases Directory <br />
 The excel files will contain values for Connection and Complete Read/Write Operation Measured on corresponding machines. For client logs, check Statistics/ClientLogs directory. For server logs, check Statistics/ServerLogs directory <br/>
 
 The first four values in each row of the csv files correspond to just the connection (TCP + SSL connect) (C)<br/>
@@ -8,7 +8,7 @@ So the order in which the file data is to be read is <br/>
 
 Latency (C), CPU Usage (C), User CPU Usage (C), System CPU Usage (C), Latency (W/R), CPU Usage (W/R), User CPU Usage (W/R), System CPU Usage (W/R) <br/>
 
-To get the statistical paramters, run the python script called test.py <br/>
+To get the statistical parameters, run the python script called test.py <br/>
 e.g. python test.py 2_1_TS_Client.csv <br/>
 FileName Statistics/ClientLogs/2_1_TS_Client.csv<br/>
 
