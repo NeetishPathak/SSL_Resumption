@@ -12,16 +12,7 @@ To get the statistical paramters, run the python script called test.py <br/>
 e.g. python test.py 2_1_TS_Client.csv <br/>
 FileName Statistics/ClientLogs/2_1_TS_Client.csv<br/>
 
-
-| Param   |   Connection time |   Conn User-CPU  |   Conn Sys-CPU |   W/R Completion |   W/R User-CPU |   W/R Sys-CPU |<br/>
-|---------+-------------------+------------------+----------------+------------------+----------------+---------------|<br/>
-| Average |  190121           |          601.072 |        489.514 | 286819           |        681.64  |      632.144  |<br/>
-| 95%     |  260166           |          788     |        642.55  | 378707           |        878     |      797      |<br/>
-| 99%     |  377468           |          808.22  |        699.55  | 589571           |        900.22  |      860.44   |<br/>
-| Stdv    |   63517.2         |          110.744 |         90.906 |  77115.7         |        117.187 |       99.4789 |<br/>
-| Min     |  152118           |          352     |        255     | 228616           |        401     |      345      |<br/>
-| Max     |       1.24226e+06 |          868     |        868     |      1.42756e+06 |        965     |     1021      |<br/>
-| Median  |  177458           |          579     |        488     | 270618           |        662     |      633      |<br/>
+![Image]
 
 ## TestCases Directory <br />
 TestCases Directory contains excel worksheets with Latency and CPU usage statistics for the following test cases performed <br />
