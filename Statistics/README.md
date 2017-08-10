@@ -12,7 +12,7 @@ To get the statistical paramters, run the python script called test.py <br/>
 e.g. python test.py 2_1_TS_Client.csv <br/>
 FileName Statistics/ClientLogs/2_1_TS_Client.csv<br/>
 
-![Image]
+![Statistics](https://github.com/NeetishPathak/SSL_Resumption/blob/master/Statistics/TestCases/Stats.png)
 
 ## TestCases Directory <br />
 TestCases Directory contains excel worksheets with Latency and CPU usage statistics for the following test cases performed <br />
